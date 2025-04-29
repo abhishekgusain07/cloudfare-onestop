@@ -237,15 +237,14 @@ export const NavbarLogo = () => {
       className="relative z-20 mr-4 flex items-center space-x-2 px-2 py-1 text-sm font-normal text-black"
     >
       <Image
-        src="/logov4.png"
+        src="/1stop.png"
         alt="logo"
         width={30}
         height={30}
         className="rounded-lg"
       />
       
-      <div className="font-sans">
-        <span className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-black">PrintMoney</span>
+      <div className="font-sans"><a className="text-[#232323] font-bold text-[16px] md:text-[16px]">OneStopMarketing</a>
       </div>
     </Link>
   );

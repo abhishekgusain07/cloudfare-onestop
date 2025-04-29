@@ -245,7 +245,7 @@ export function NavbarDemo({
           </MobileNavMenu>
         </MobileNav>
       </Navbar>
-      <div className="pt-20">
+      <div className="">
         {children}
       </div>
     </div>

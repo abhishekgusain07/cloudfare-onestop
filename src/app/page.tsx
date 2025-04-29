@@ -7,12 +7,13 @@ import Link from "next/link";
 import ProblemSection from "./components/problem";
 import SolutionSection from "./components/solution";
 import Footer from "./components/footer";
-import TechnologyUsed from "./components/techused";
+import PlatformSupported from "./components/techused";
 import Announcement from "./components/announcement";
 import { HoverEffect } from "@/components/ui/card-hover-effect";
 import type { LucideIcon } from "lucide-react";
 import { useFeedbackModal } from "@/hooks/useFeedbackModal";
 import { useUser } from "@/hooks/useUser";
+import HeroSectionV1 from "@/components/homepage/herosection";
 
 export default function Home() {
   const [showAnnouncement, setShowAnnouncement] = useState(true);
@@ -104,22 +105,11 @@ export default function Home() {
       />
       <NavbarDemo>
         {/* Hero Section */}
-        <section className="pt-8 pb-8 px-4 md:px-8 lg:px-16 flex flex-col items-center text-center">
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-blue-400 dark:from-blue-400 dark:to-blue-200 leading-tight">
-            Ship Your SaaS <br />
-            <span className="inline-block mt-1 mb-2">Blazingly Fast</span>
-          </h1>
-          <p className="text-lg text-muted-foreground max-w-xl mb-6">
-            Everything you need, ready to launch.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Link href="/dashboard" className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-3 rounded-md font-medium text-lg shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all">
-              Get Started
-            </Link>
-          </div>
-        </section>
+        <main className="flex-grow">
+          <HeroSectionV1 />
+        </main>
         
-        <TechnologyUsed />
+        <PlatformSupported />
         {/* Features Section */}
         <section id="features" className="py-16 px-4 md:px-8 lg:px-16 bg-secondary/20">
           <div className="max-w-6xl mx-auto">

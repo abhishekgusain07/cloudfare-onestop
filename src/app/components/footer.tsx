@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import React from 'react';
 
 // --- Icon Components ---
@@ -80,10 +81,12 @@ const Footer = () => {
   return (
     <footer className="py-16 md:py-32">
       <div className="mx-auto max-w-5xl px-6">
-        {/* Homepage Link */}
-        <a aria-label="go home" className="mx-auto block size-fit font-semibold" href="/">
-          PrintMoney Template
-        </a>
+        {/* Homepage Link - Fixed hydration issue by using a span instead of a div */}
+        <span className="mx-auto block size-fit">
+          <Link aria-label="go home" className="font-semibold" href="/">
+            oneStopMarketing
+          </Link>
+        </span>
 
         {/* Navigation Links */}
         <div className="my-8 flex flex-wrap justify-center gap-6 text-sm">

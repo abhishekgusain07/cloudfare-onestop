@@ -21,12 +21,12 @@ const HeroSectionV1 = () => {
           <span className="block md:hidden">Create viral content that converts across all platforms</span>
         </p>
         <div className="flex gap-2 mt-4">
-          <Button className="bg-[#1D6BF3] text-white text-[16px] font-medium px-6 py-2 rounded-full shadow-md hover:opacity-90 transition-opacity">
+          <Button className="bg-[#4A8DFF] text-white text-[16px] font-medium px-6 py-2 rounded-full shadow-md hover:opacity-90 transition-opacity">
             Start Now
           </Button>
           <Button
             variant="outline"
-            className="text-[#333] text-[16px] font-medium px-6 py-2 rounded-full shadow-md hover:opacity-90 transition-opacity"
+            className="text-[#333] text-[16px] font-medium px-6 py-2 rounded-full shadow-md hover:opacity-90 transition-opacity border-[#4A8DFF] hover:bg-[#4A8DFF]/10"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"

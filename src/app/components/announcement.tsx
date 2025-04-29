@@ -32,7 +32,7 @@ const Announcement = ({
   };
   
   return (
-    <div className="z-50 bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-950/30 dark:to-green-950/30 py-2 border-b border-emerald-100 dark:border-emerald-900/30">
+    <div className="z-50 bg-gradient-to-r from-blue-50 to-sky-50 dark:from-blue-950/30 dark:to-sky-950/30 py-2 border-b border-blue-100 dark:border-blue-900/30">
       <div className="container mx-auto px-4 relative">
         <p className="text-sm text-gray-600 dark:text-gray-300 text-center pr-8">
           {emoji} {message}{' '}
@@ -40,7 +40,7 @@ const Announcement = ({
             <a 
               href={link.url} 
               onClick={onLinkClick}
-              className="font-semibold text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300 underline underline-offset-2"
+              className="font-semibold text-[#4A8DFF] hover:text-[#3A7DEF] dark:text-[#4A8DFF] dark:hover:text-[#5A9DFF] underline underline-offset-2"
             >
               {link.text}
             </a>

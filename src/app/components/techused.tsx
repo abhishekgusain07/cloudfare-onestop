@@ -6,7 +6,7 @@ const PlatformSupported = () => {
     {
       name: "Instagram",
       height: "h-12",
-      src: "https://res.cloudinary.com/dowiygzq3/image/upload/v1741087634/108468352_rdoifc.png",
+      src: "/socialslogo/instagram.svg",
       alt: "Instagram",
       additionalClasses: "rounded-md",
       tooltip: "Instagram"
@@ -14,31 +14,29 @@ const PlatformSupported = () => {
     {
       name: "Tiktok",
       height: "h-12",
-      src: "https://res.cloudinary.com/dowiygzq3/image/upload/v1741087544/typescript_wrgqvm.webp",
+      src: "/socialslogo/tiktok.svg",
       alt: "Tiktok",
       tooltip: "Tiktok"
     },
     {
-      name: "Facebook",
-      height: "h-12",
-      src: "https://res.cloudinary.com/dowiygzq3/image/upload/v1740732044/163827765_qn4qmt.png",
-      alt: "Facebook",
-      additionalClasses: "rounded-md",
-      tooltip: "Facebook"
-    },
-    {
       name: "Linkedin",
       height: "h-12",
-      src: "https://res.cloudinary.com/dowiygzq3/image/upload/v1741087611/neon-logomark-dark-color_1_bzq0v2.svg",
+      src: "/socialslogo/linkedin.svg",
       alt: "Linkedin",
       additionalClasses: "rounded-md",
       tooltip: "Linkedin"
     },
     {
-      name: "Twitter",
+      name: "X",
       height: "h-5",
-      src: "/nextjs.svg",
-      alt: "Twitter"
+      src: "/socialslogo/x.svg",
+      alt: "X"
+    },
+    {
+      name: "Youtube",
+      height: "h-5",
+      src: "/socialslogo/youtube.svg",
+      alt: "Youtube"
     }
   ];
 

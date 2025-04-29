@@ -244,7 +244,7 @@ export const NavbarLogo = () => {
         className="rounded-lg"
       />
       
-      <div className="font-sans"><a className="text-[#232323] font-bold text-[16px] md:text-[16px]">OneStopMarketing</a>
+      <div className="font-sans"><span className="text-[#232323] font-bold text-[16px] md:text-[16px]">OneStopMarketing</span>
       </div>
     </Link>
   );

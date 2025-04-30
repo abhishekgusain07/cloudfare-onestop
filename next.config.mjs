@@ -1,4 +1,6 @@
 import { withSentryConfig } from "@sentry/nextjs";
+import { bundle } from '@remotion/bundler';
+import { webpackOverride } from './src/remotion.config';
 
 // Define config inline since we can't directly import TypeScript files in ESM
 const config = {
@@ -56,6 +58,19 @@ const nextConfig = {
   },
   // Only needed if PostHog is enabled
   skipTrailingSlashRedirect: config.analytics.posthog.enabled,
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+      };
+    }
+    return config;
+  },
+  experimental: {
+    serverComponentsExternalPackages: ['@remotion/renderer'],
+  },
 };
 
 // Sentry configuration options

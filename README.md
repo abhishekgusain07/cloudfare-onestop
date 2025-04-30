@@ -1,24 +1,87 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Video Editor with Remotion
+
+A powerful video editor built with Next.js, TypeScript, and Remotion that allows users to create and edit videos in the browser.
+
+## Features
+
+- Upload and manage media assets (videos, images, audio)
+- Drag-and-drop timeline interface
+- Real-time preview with Remotion
+- Text overlay editor with styling options
+- Server-side video rendering
+- Modern UI with Tailwind CSS
 
 ## Getting Started
 
-First, run the development server:
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   bun install
+   ```
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+3. Start the development server:
+   ```bash
+   bun run dev
+   ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+4. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Usage
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Uploading Media
+
+1. Click on the upload area or drag and drop files
+2. Supported formats:
+   - Videos: MP4, MOV, AVI
+   - Images: PNG, JPG, JPEG, GIF
+   - Audio: MP3, WAV, OGG
+
+### Timeline Editor
+
+1. Drag media clips to position them on the timeline
+2. Use the zoom controls to adjust the timeline scale
+3. Click and drag clips to adjust their timing
+4. The red playhead shows the current position
+
+### Text Overlays
+
+1. Enter text content in the text editor
+2. Customize font, size, and color
+3. Click "Add Text to Timeline" to add the text overlay
+4. Position and adjust timing in the timeline
+
+### Preview and Export
+
+1. Use the preview player to see your composition
+2. Click the play button to preview
+3. When ready, click the export button to render the final video
+4. The rendered video will be downloaded automatically
+
+## Development
+
+### Project Structure
+
+- `src/app/(dashboard)/ad/page.tsx` - Main editor page
+- `src/components/` - UI components
+  - `MediaUpload.tsx` - File upload component
+  - `Preview.tsx` - Video preview with Remotion
+  - `Timeline.tsx` - Timeline editor
+  - `TextEditor.tsx` - Text overlay editor
+- `src/store/editorStore.ts` - State management with Zustand
+- `src/app/api/render/route.ts` - Video rendering API endpoint
+
+### Dependencies
+
+- Next.js - React framework
+- TypeScript - Type safety
+- Remotion - Video rendering
+- Zustand - State management
+- React DnD - Drag and drop
+- Tailwind CSS - Styling
+
+## License
+
+MIT
 
 ## Learn More
 

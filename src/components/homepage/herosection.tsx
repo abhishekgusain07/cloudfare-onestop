@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 const HeroSectionV1 = () => {
   return (
     <div className="flex flex-col items-center justify-center text-center px-4 pt-16 pb-8">
-      <div className="flex flex-col items-center justify-center text-center mb-16">
+      <div className="flex flex-col items-center justify-center text-center mb-16 mt-4">
         <a className="text-[#777] font-medium text-[14px] px-[12px] py-[4px] bg-[#FFF] rounded-full shadow mb-6 mt-2">
           Transform Your Social Media Presence
         </a>

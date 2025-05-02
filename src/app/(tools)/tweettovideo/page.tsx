@@ -229,6 +229,19 @@ export default function TweetToVideoPage() {
     setProgress(10);
     setError(null);
     const tweetId = extractTweetId(tweetUrl);
+    
+    // Mock data for development
+    const mockTweetContent = `This is a sample tweet content that demonstrates how the video generation would work. 
+    It includes multiple sentences that can be converted into video segments.
+    
+    Each paragraph will become a separate segment in the final video.
+    
+    The system will automatically generate appropriate images for each segment.
+    
+    This is just for testing purposes while we fix the Twitter API integration.`;
+    
+    // Comment out the actual API call
+    /*
     try {
       const response = await fetch('/api/tweettovideo/tweetcontent', {
         method: 'POST',
@@ -237,10 +250,18 @@ export default function TweetToVideoPage() {
         },
         body: JSON.stringify({ tweetId }),
       });
-      console.log("Tweet content response:", response);
+
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch tweet content');
+        if (response.status === 404) {
+          throw new Error('Tweet not found. Please check if the tweet URL is correct and the tweet is still available.');
+        } else if (response.status === 401) {
+          throw new Error('Unauthorized. Please make sure you are logged in.');
+        } else if (response.status === 429) {
+          throw new Error('Too many requests. Please try again later.');
+        } else {
+          throw new Error(errorData.error || 'Failed to fetch tweet content');
+        }
       }
 
       const data = await response.json();
@@ -251,6 +272,12 @@ export default function TweetToVideoPage() {
       setIsProcessing(false);
       throw err;
     }
+    */
+
+    // Use mock data instead
+    setTweetContent(mockTweetContent);
+    setIsProcessing(false);
+    return mockTweetContent;
   };
 
   // Process script to get segments and image prompts
@@ -655,7 +682,6 @@ export default function TweetToVideoPage() {
               Enter a Twitter/X URL to convert into a video
             </p>
           </div>
-          
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Voice

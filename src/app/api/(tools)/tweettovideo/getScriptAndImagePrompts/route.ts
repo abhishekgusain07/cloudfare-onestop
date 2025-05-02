@@ -71,28 +71,35 @@ export async function POST(request: NextRequest) {
             );
         }
         
-        const prompt = `  
-        1. The output response should be exactly what I want in the json format.
-        2. Not a single word should be out of context.
-        3. The output should be an array of objects.
-        4. Each object should have 2 keys, ContextText and ImagePrompt.
-        5. ContextText is the part that the narrator will say and ImagePrompt is the prompt to generate the image what will be rendered for the time narrator will say that.
-        6. The output should be an array of objects. 
-        7. The array should be named as "result". 
-        8. Please don't add any other thing to the script and the ContextText outside of the words used in the script. 
-        9. Sentence structure should be same as the script.
+        const prompt = `You are a video script and image prompt generator. Your task is to:
+        1. Take the provided script and break it into logical segments
+        2. For each segment, generate:
+           - ContextText: The exact text that will be spoken
+           - ImagePrompt: A detailed prompt for generating an image that matches the text
+        3. Return the response in this exact JSON format:
+           {
+             "result": [
+               {
+                 "ContextText": "exact text from script",
+                 "ImagePrompt": "detailed image generation prompt"
+               }
+             ]
+           }
+        4. Do not add any additional text or explanation
+        5. Use only the words from the provided script
+        6. Keep the original sentence structure
         
-        The script is: ${script}`;
+        Script to process: ${script}`;
 
         // Wait for a rate limit token before making the API call
         await geminiRateLimiter.getToken();
 
         // Use Vercel AI SDK to generate text with Gemini
         const { text: generatedText } = await generateText({
-            model: google('gemini-2.0-flash'),
+            model: google('gemini-1.5-flash'),
             prompt: prompt,
-            maxTokens: 1000, // Adjust based on your needs
-            temperature: 0.1, // Lower temperature for more deterministic results
+            maxTokens: 1000,
+            temperature: 0.1,
         });
         
         if (!generatedText) {
@@ -101,14 +108,35 @@ export async function POST(request: NextRequest) {
                 { status: 500 }
             );
         }
-        
+
+        // Clean the response to ensure it's valid JSON
+        const cleanedText = generatedText
+            .replace(/```json\n?/g, '')  // Remove JSON code blocks
+            .replace(/```\n?/g, '')      // Remove any remaining code blocks
+            .trim();                     // Remove whitespace
+
         let data;
         try {
-            data = JSON.parse(generatedText);
-        } catch (error) {
+            data = JSON.parse(cleanedText);
+            
+            // Validate the data structure
+            if (!data.result || !Array.isArray(data.result)) {
+                throw new Error("Invalid response structure");
+            }
+            
+            // Validate each segment
+            data.result.forEach((segment: { ContextText: string; ImagePrompt: string }, index: number) => {
+                if (!segment.ContextText || !segment.ImagePrompt) {
+                    throw new Error(`Invalid segment at index ${index}`);
+                }
+            });
+            
+        } catch (error: unknown) {
             console.error("Error parsing Gemini response:", error);
+            console.error("Raw response:", cleanedText);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             return NextResponse.json(
-                { error: "Failed to parse AI response" },
+                { error: "Failed to parse AI response: " + errorMessage },
                 { status: 500 }
             );
         }

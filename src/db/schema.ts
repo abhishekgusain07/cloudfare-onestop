@@ -1,4 +1,8 @@
-import { pgTable, text, integer, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, timestamp, boolean, jsonb, varchar } from "drizzle-orm/pg-core";
+import { createInsertSchema, createSelectSchema } from "drizzle-zod";
+import { z } from "zod";
+import { sql } from 'drizzle-orm';
+import { pgEnum } from 'drizzle-orm/pg-core';
 			
 export const user = pgTable("user", {
 	id: text("id").primaryKey(),
@@ -48,9 +52,6 @@ export const verification = pgTable("verification", {
 	updatedAt: timestamp('updated_at')
 });
 
-
-
-
 export const subscriptions = pgTable("subscriptions", {
 	id: text("id").primaryKey(),
 	createdTime: timestamp("created_time").defaultNow(),
@@ -65,7 +66,7 @@ export const subscriptions = pgTable("subscriptions", {
 	userId: text("user_id"),
   });
   
-  export const subscriptionPlans = pgTable("subscriptions_plans", {
+export const subscriptionPlans = pgTable("subscriptions_plans", {
 	id: text("id").primaryKey(),
 	createdTime: timestamp("created_time").defaultNow(),
 	planId: text("plan_id"),
@@ -76,7 +77,7 @@ export const subscriptions = pgTable("subscriptions", {
 	interval: text("interval"),
   });
   
-  export const invoices = pgTable("invoices", {
+export const invoices = pgTable("invoices", {
 	id: text("id").primaryKey(),
 	createdTime: timestamp("created_time").defaultNow(),
 	invoiceId: text("invoice_id"),
@@ -89,7 +90,6 @@ export const subscriptions = pgTable("subscriptions", {
 	userId: text("user_id"),
   });
 
-
 export const feedback = pgTable("feedback", {
 	id: text("id").primaryKey(),
 	createdTime: timestamp("created_time").defaultNow(),
@@ -97,3 +97,69 @@ export const feedback = pgTable("feedback", {
 	feedbackContent: text("feedback_content"),
 	stars: integer().notNull()
 })
+
+// Define enums
+export const videoStatusEnum = pgEnum('video_status', ['pending', 'processing', 'completed', 'failed'] as [string, string, string, string]);
+export const screenRatioEnum = pgEnum('screen_ratio', ['1/1', '16/9', '9/16', '4/5'] as [string, string, string, string]);
+export const captionPresetEnum = pgEnum('caption_preset', ['BASIC', 'MODERN', 'MINIMAL'] as [string, string, string]);
+export const captionAlignmentEnum = pgEnum('caption_alignment', ['LEFT', 'CENTER', 'RIGHT'] as [string, string, string]);
+
+export const videos = pgTable('videos', {
+	id: varchar('id', { length: 36 }).primaryKey(),
+	userId: varchar('user_id', { length: 36 }).notNull(),
+	title: varchar('title', { length: 255 }).notNull(),
+	description: text('description'),
+	status: videoStatusEnum('status').notNull().default('pending'),
+	disableCaptions: boolean('disable_captions').notNull().default(false),
+	audioDuration: integer('audio_duration').notNull().default(0),
+	screenRatio: screenRatioEnum('screen_ratio').notNull().default('1/1'),
+	captionPreset: captionPresetEnum('caption_preset').notNull().default('BASIC'),
+	captionAlignment: captionAlignmentEnum('caption_alignment').notNull().default('CENTER'),
+	createdAt: timestamp('created_at')
+		.notNull()
+		.default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: timestamp('updated_at')
+		.notNull()
+		.default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const videoAssets = pgTable('video_assets', {
+	id: varchar('id', { length: 36 }).primaryKey(),
+	videoId: varchar('video_id', { length: 36 })
+		.notNull()
+		.references(() => videos.id),
+	type: varchar('type', { length: 10 }).notNull(),
+	url: text('url').notNull(),
+	metadata: jsonb('metadata'),
+	createdAt: timestamp('created_at')
+		.notNull()
+		.default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: timestamp('updated_at')
+		.notNull()
+		.default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const videoClips = pgTable('video_clips', {
+	id: varchar('id', { length: 36 }).primaryKey(),
+	videoId: varchar('video_id', { length: 36 })
+		.notNull()
+		.references(() => videos.id),
+	assetId: varchar('asset_id', { length: 36 })
+		.notNull()
+		.references(() => videoAssets.id),
+	startTime: integer('start_time').notNull(),
+	duration: integer('duration').notNull(),
+	trackIndex: integer('track_index').notNull(),
+	createdAt: timestamp('created_at')
+		.notNull()
+		.default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: timestamp('updated_at')
+		.notNull()
+		.default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const selectVideoSchema = createSelectSchema(videos);
+export const insertVideoSchema = createInsertSchema(videos);
+
+export const selectVideoAssetSchema = createSelectSchema(videoAssets);
+export const insertVideoAssetSchema = createInsertSchema(videoAssets);

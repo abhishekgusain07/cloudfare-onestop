@@ -2,22 +2,63 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { env } from "@/env";
+import { Rettiwt, type TweetEntities, type TweetMedia, type User, type Tweet } from "rettiwt-api";
 
-function isValidTwitterUrl(url: string): boolean {
-    try {
-      const parsedUrl = new URL(url);
-      const hostname = parsedUrl.hostname;
-      
-      // Check if the hostname is twitter.com, www.twitter.com, x.com, or www.x.com
-      return hostname === 'twitter.com' || 
-             hostname === 'www.twitter.com' || 
-             hostname === 'x.com' || 
-             hostname === 'www.x.com';
-    } catch (error) {
-      // If URL parsing fails, it's not a valid URL
-      return false;
-    }
-  }
+function sanitizeTweetData(tweet: Tweet): Record<string, any> {
+  return {
+    bookmarkCount: tweet.bookmarkCount,
+    createdAt: tweet.createdAt,
+    entities: sanitizeTweetEntities(tweet.entities),
+    fullText: tweet.fullText,
+    id: tweet.id,
+    lang: tweet.lang,
+    likeCount: tweet.likeCount,
+    media: tweet.media ? tweet.media.map(sanitizeTweetMedia) : undefined,
+    quoteCount: tweet.quoteCount,
+    quoted: tweet.quoted,
+    replyCount: tweet.replyCount,
+    replyTo: tweet.replyTo,
+    retweetCount: tweet.retweetCount,
+    retweetedTweet: tweet.retweetedTweet ? sanitizeTweetData(tweet.retweetedTweet) : undefined,
+    tweetBy: sanitizeUser(tweet.tweetBy),
+    viewCount: tweet.viewCount
+  };
+}
+
+function sanitizeTweetEntities(entities: TweetEntities): Record<string, any> {
+return {
+  hashtags: entities.hashtags,
+  mentionedUsers: entities.mentionedUsers,
+  urls: entities.urls
+};
+}
+
+function sanitizeTweetMedia(media: TweetMedia): Record<string, any> {
+return {
+  type: media.type,
+  url: media.url
+};
+}
+
+function sanitizeUser(user: User): Record<string, any> {
+return {
+  createdAt: user.createdAt,
+  description: user.description,
+  followersCount: user.followersCount,
+  followingsCount: user.followingsCount,
+  fullName: user.fullName,
+  id: user.id,
+  isVerified: user.isVerified,
+  likeCount: user.likeCount,
+  location: user.location,
+  pinnedTweet: user.pinnedTweet,
+  profileBanner: user.profileBanner,
+  profileImage: user.profileImage,
+  statusesCount: user.statusesCount,
+  userName: user.userName
+};
+}
+const rettiwt = new Rettiwt({ apiKey: env.TWITTER_API_KEY });
 
 export async function POST(request: NextRequest) {
   const session = await auth.api.getSession({
@@ -31,48 +72,15 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const {tweetUrl} = body; 
+    const { tweetId } = body;
 
-    if (!isValidTwitterUrl(tweetUrl)) {
-      return NextResponse.json({ error: "Invalid Twitter URL" }, { status: 400 });
-    }
-    
-    if (!tweetUrl) {
-      return NextResponse.json({ error: "Tweet URL is required" }, { status: 400 });
+    if (!tweetId) {
+      return NextResponse.json({ error: 'Tweet ID is required' }, { status: 400 });
     }
 
-    // Call Exa AI API to get content from the tweet URL
-    const exaApiKey = env.EXA_API_KEY;
-    
-    if (!exaApiKey) {
-      return NextResponse.json({ error: "API key not configured" }, { status: 500 });
-    }
-
-    const response = await fetch('https://api.exa.ai/contents', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${exaApiKey}`
-      },
-      body: JSON.stringify({
-        urls: [tweetUrl],
-        text: true
-      })
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error("Exa API error:", errorData);
-      return NextResponse.json(
-        { error: "Failed to fetch tweet content" }, 
-        { status: response.status }
-      );
-    }
-
-    const contentData = await response.json();
-    
-    // Extract the relevant content from the results
-    const tweetContent = contentData.results[0].text;
+    const tweet = await getTweetDetails(tweetId);
+    const sanitizedTweet = sanitizeTweetData(tweet);
+    const tweetContent = sanitizedTweet.fullText;
     
     return NextResponse.json({ 
       success: true, 
@@ -82,4 +90,15 @@ export async function POST(request: NextRequest) {
     console.error("Error processing tweet content: ", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
+}
+
+
+
+
+async function getTweetDetails(tweetId: string): Promise<Tweet> {
+  const tweet = await rettiwt.tweet.details(tweetId);
+  if (!tweet) {
+    throw new Error('Tweet not found');
+  }
+  return tweet;
 }

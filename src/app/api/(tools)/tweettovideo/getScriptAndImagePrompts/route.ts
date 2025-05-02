@@ -1,18 +1,61 @@
 import { auth } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
-import { OpenAI } from "openai";
 import { headers } from "next/headers";
-import { env } from "@/env";
+import { google } from '@ai-sdk/google';
+import { generateText } from 'ai';
 
-const openai = new OpenAI({
-    apiKey: env.OPENAI_API_KEY
-})
+// Rate limiter implementation
+class RateLimiter {
+  private tokens: number;
+  private maxTokens: number;
+  private refillRate: number; // tokens per ms
+  private lastRefillTimestamp: number;
+
+  constructor(maxRequestsPerMinute: number) {
+    this.maxTokens = maxRequestsPerMinute;
+    this.tokens = maxRequestsPerMinute;
+    this.refillRate = maxRequestsPerMinute / (60 * 1000); // Convert to tokens per ms
+    this.lastRefillTimestamp = Date.now();
+  }
+
+  async getToken(): Promise<boolean> {
+    this.refill();
+    
+    if (this.tokens < 1) {
+      const waitTime = Math.ceil((1 - this.tokens) / this.refillRate);
+      console.log(`Rate limit reached. Waiting ${waitTime}ms for next token`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+      this.refill();
+    }
+    
+    if (this.tokens >= 1) {
+      this.tokens -= 1;
+      return true;
+    }
+    
+    return false;
+  }
+
+  private refill() {
+    const now = Date.now();
+    const elapsedTime = now - this.lastRefillTimestamp;
+    const tokensToAdd = elapsedTime * this.refillRate;
+    
+    if (tokensToAdd > 0) {
+      this.tokens = Math.min(this.maxTokens, this.tokens + tokensToAdd);
+      this.lastRefillTimestamp = now;
+    }
+  }
+}
+
+// Create a singleton rate limiter instance (10 requests per minute)
+const geminiRateLimiter = new RateLimiter(10);
 
 export async function POST(request: NextRequest) {
     const session = await auth.api.getSession({
         headers: await headers()
     });
-    const userId  = session?.session?.userId;
+    const userId = session?.session?.userId;
     if(!userId){
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -41,22 +84,34 @@ export async function POST(request: NextRequest) {
         
         The script is: ${script}`;
 
-        const response = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [{ role: "user", content: prompt }],
-            response_format: { type: "json_object" }
-        });
+        // Wait for a rate limit token before making the API call
+        await geminiRateLimiter.getToken();
 
-        const content = response.choices[0].message.content;
+        // Use Vercel AI SDK to generate text with Gemini
+        const { text: generatedText } = await generateText({
+            model: google('gemini-2.0-flash'),
+            prompt: prompt,
+            maxTokens: 1000, // Adjust based on your needs
+            temperature: 0.1, // Lower temperature for more deterministic results
+        });
         
-        if (!content) {
+        if (!generatedText) {
             return NextResponse.json(
                 { error: "Failed to generate script segments and image prompts" },
                 { status: 500 }
             );
         }
         
-        const data = JSON.parse(content);
+        let data;
+        try {
+            data = JSON.parse(generatedText);
+        } catch (error) {
+            console.error("Error parsing Gemini response:", error);
+            return NextResponse.json(
+                { error: "Failed to parse AI response" },
+                { status: 500 }
+            );
+        }
 
         console.log("getScriptAndImagePrompts: ", data);
         
@@ -77,8 +132,8 @@ export async function POST(request: NextRequest) {
             );
         }
         
-        // Handle OpenAI API errors
-        if (error.name === 'OpenAIError') {
+        // Handle Gemini API errors
+        if (error.name === 'GoogleAIError') {
             return NextResponse.json(
                 { error: "AI service error: " + error.message },
                 { status: 503 }

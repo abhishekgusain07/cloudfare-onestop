@@ -21,4 +21,6 @@ export const env = {
   ASSEMBLY_AI_API_KEY: process.env.ASSEMBLY_AI_API_KEY || "",
   OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
   EXA_API_KEY: process.env.EXA_API_KEY || "",
+  GOOGLE_GENERATIVE_AI_API_KEY: process.env.GOOGLE_GENERATIVE_AI_API_KEY || "",
+  TWITTER_API_KEY: process.env.TWITTER_API_KEY || "",
 }; 

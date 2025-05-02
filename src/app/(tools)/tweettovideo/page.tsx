@@ -153,6 +153,38 @@ const IMAGE_PRESETS = [
   { id: 'ghibli', label: 'Studio Ghibli' },
 ] as const;
 
+
+function extractTweetId(input: string): string {
+  // Step 1: Check if the input is a valid URL
+  let url: URL;
+  try {
+    url = new URL(input);
+  } catch (error) {
+    throw new Error("Invalid URL provided");
+  }
+
+  // Step 2: Check if the URL is from x.com or twitter.com
+  if (!(url.hostname === 'x.com' || url.hostname === 'twitter.com')) {
+    throw new Error("URL is not from x.com or twitter.com");
+  }
+
+  // Step 3: Extract the tweet ID from the URL path
+  const pathParts = url.pathname.split('/');
+  const statusIndex = pathParts.indexOf('status');
+
+  if (statusIndex === -1 || statusIndex === pathParts.length - 1) {
+    throw new Error("Unable to find tweet ID in the URL");
+  }
+
+  const tweetId = pathParts[statusIndex + 1];
+
+  // Step 4: Validate the tweet ID
+  if (!/^\d+$/.test(tweetId)) {
+    throw new Error("Invalid tweet ID format");
+  }
+
+  return tweetId;
+}
 // Main component
 export default function TweetToVideoPage() {
   const router = useRouter();
@@ -196,16 +228,16 @@ export default function TweetToVideoPage() {
     setCurrentStep('Fetching tweet content...');
     setProgress(10);
     setError(null);
-
+    const tweetId = extractTweetId(tweetUrl);
     try {
       const response = await fetch('/api/tweettovideo/tweetcontent', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ tweetUrl }),
+        body: JSON.stringify({ tweetId }),
       });
-
+      console.log("Tweet content response:", response);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to fetch tweet content');
@@ -319,6 +351,37 @@ export default function TweetToVideoPage() {
       return data.words;
     } catch (err: any) {
       setError(err.message || 'Failed to generate captions');
+      setIsProcessing(false);
+      throw err;
+    }
+  };
+
+  // Generate black screen
+  const generateBlackScreen = async (segments: ScriptSegment[]) => {
+    setCurrentStep('Preparing video segments...');
+    setProgress(80);
+
+    try {
+      const updatedSegments = [...segments];
+      
+      // Create a black screen image data URL
+      const blackScreenUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+      
+      // Update all segments with the black screen
+      for (let i = 0; i < segments.length; i++) {
+        updatedSegments[i] = {
+          ...segments[i],
+          imageUrl: blackScreenUrl
+        };
+        
+        // Update progress incrementally for each segment
+        setProgress(80 + (i / segments.length) * 20);
+      }
+      
+      setSegments(updatedSegments);
+      return updatedSegments;
+    } catch (err: any) {
+      setError(err.message || 'Failed to prepare video segments');
       setIsProcessing(false);
       throw err;
     }
@@ -463,13 +526,13 @@ export default function TweetToVideoPage() {
       // Step 4: Generate captions - use the local value instead of the state value
       const captionsData = await generateCaptions(audioUrlValue);
       
-      // Step 5: Generate images
-      const segmentsWithImages = await generateImages(scriptSegments);
+      // Step 5: Generate black screen for segments
+      const segmentsWithBlackScreen = await generateBlackScreen(scriptSegments);
       
       // Step 6: Save to history
       if (audioDurationValue) {
-        console.log("Saving video to history: ", content, audioUrlValue, segmentsWithImages, captionsData, audioDurationValue);
-        await saveVideoToHistory(content, audioUrlValue, segmentsWithImages, captionsData, audioDurationValue);
+        console.log("Saving video to history: ", content, audioUrlValue, segmentsWithBlackScreen, captionsData, audioDurationValue);
+        await saveVideoToHistory(content, audioUrlValue, segmentsWithBlackScreen, captionsData, audioDurationValue);
       } else {
         console.log("Cannot save video - audioDuration is missing. Tried all sources but none had a value.");
       }

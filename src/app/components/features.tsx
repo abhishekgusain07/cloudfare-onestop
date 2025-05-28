@@ -137,7 +137,7 @@ const FeatureShowcase = () => {
                   className="w-full object-contain"
                   style={{ color: 'transparent' }}
                   srcSet="/_next/image?url=%2FPlattforms.png&w=640&q=75 1x, /_next/image?url=%2FPlattforms.png&w=1200&q=75 2x"
-                  src="/_next/image?url=%2FPlattforms.png&w=1200&q=75"
+                  src="/Plattforms.png"
                 />
               </div>
             </div>

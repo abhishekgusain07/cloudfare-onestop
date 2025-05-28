@@ -14,6 +14,7 @@ import type { LucideIcon } from "lucide-react";
 import { useFeedbackModal } from "@/hooks/useFeedbackModal";
 import { useUser } from "@/hooks/useUser";
 import HeroSectionV1 from "@/components/homepage/herosection";
+import FeatureShowcase from "./components/features";
 
 export default function Home() {
   const [showAnnouncement, setShowAnnouncement] = useState(true);
@@ -118,6 +119,7 @@ export default function Home() {
           </div>
         </section>
 
+        <FeatureShowcase />
 
         <ProblemSection />
 

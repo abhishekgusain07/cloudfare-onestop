@@ -141,6 +141,11 @@ export default function CreatePage() {
 
   // Handle video rendering
   const handleRenderVideo = async () => {
+    if (!selectedTemplate) {
+      toast.error('Please select a video template');
+      return;
+    }
+    
     setIsRendering(true);
     setRenderProgress(0);
     
@@ -160,24 +165,34 @@ export default function CreatePage() {
       
       if (data.success) {
         setRenderId(data.renderId);
+        toast.success('Video rendering started!');
         
         // Poll for render status
         const statusInterval = setInterval(async () => {
-          const statusResponse = await fetch(`/api/render/${data.renderId}/status`);
-          const statusData = await statusResponse.json();
-          
-          if (statusData.status === 'completed') {
-            clearInterval(statusInterval);
-            setIsRendering(false);
-            setRenderProgress(100);
-            toast.success('Video rendering complete!');
-            // Navigate to download page or show download button
-          } else if (statusData.status === 'failed') {
-            clearInterval(statusInterval);
-            setIsRendering(false);
-            toast.error('Video rendering failed. Please try again.');
-          } else if (statusData.status === 'rendering') {
-            setRenderProgress(statusData.progress || 0);
+          try {
+            const statusResponse = await fetch(`/api/render/${data.renderId}/status`);
+            if (!statusResponse.ok) {
+              console.error('Error fetching render status:', await statusResponse.text());
+              return;
+            }
+            
+            const statusData = await statusResponse.json();
+            console.log('Render status:', statusData);
+            
+            if (statusData.status === 'completed') {
+              clearInterval(statusInterval);
+              setIsRendering(false);
+              setRenderProgress(100);
+              toast.success('Video rendering complete! Click Download to get your video.');
+            } else if (statusData.status === 'failed') {
+              clearInterval(statusInterval);
+              setIsRendering(false);
+              toast.error(statusData.error || 'Video rendering failed. Please try again.');
+            } else if (statusData.status === 'rendering') {
+              setRenderProgress(statusData.progress || 0);
+            }
+          } catch (error) {
+            console.error('Error checking render status:', error);
           }
         }, 2000);
       } else {
@@ -195,142 +210,201 @@ export default function CreatePage() {
   const handleDownloadVideo = async () => {
     if (!renderId) return;
     
-    window.location.href = `/api/download/${renderId}`;
+    try {
+      // Check if the render is complete before downloading
+      const statusResponse = await fetch(`/api/render/${renderId}/status`);
+      const statusData = await statusResponse.json();
+      
+      if (statusData.status === 'completed') {
+        // Direct download via window location
+        window.location.href = `/api/download/${renderId}`;
+      } else if (statusData.status === 'rendering') {
+        toast.info(`Video is still rendering (${statusData.progress || 0}% complete). Please wait.`);
+      } else {
+        toast.error('Video is not available for download yet.');
+      }
+    } catch (error) {
+      console.error('Error checking render status before download:', error);
+      toast.error('Error preparing download. Please try again.');
+    }
   };
 
   return (
-    <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-8">Create Your UGC Video</h1>
-      
-      {isLoading ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-gray-500">Loading video templates...</p>
-          </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Video Preview */}
-          <div className="lg:col-span-2 bg-gray-900 rounded-lg overflow-hidden">
-            {selectedTemplate ? (
-              <div className="aspect-video">
-                <Player
-                  component={VideoComposition}
-                  durationInFrames={(selectedTemplate?.duration || 15) * 30} // 30fps
-                  fps={30}
-                  compositionWidth={1920}
-                  compositionHeight={1080}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                  }}
-                  controls
-                  inputProps={{
-                    ...videoParams,
-                    templateUrl: selectedTemplate?.url,
-                  }}
-                />
-              </div>
-            ) : (
-              <div className="flex items-center justify-center h-64 bg-gray-800 text-gray-400">
-                <p>No template selected. Please select a template from the Template tab.</p>
-              </div>
-            )}
-          </div>
-          
-          {/* Editor Controls */}
-          <div className="bg-gray-100 p-6 rounded-lg">
-            <Tabs defaultValue="text">
-              <TabsList className="grid grid-cols-4 mb-6">
-                <TabsTrigger value="text">Text</TabsTrigger>
-                <TabsTrigger value="position">Position</TabsTrigger>
-                <TabsTrigger value="music">Music</TabsTrigger>
-                <TabsTrigger value="template">Template</TabsTrigger>
-              </TabsList>
-            
-              <TabsContent value="text">
-                <TextEditor
-                  text={videoParams.text}
-                  fontSize={videoParams.fontSize}
-                  textColor={videoParams.textColor}
-                  textOpacity={videoParams.textOpacity}
-                  onTextChange={handleTextChange}
-                  onFontSizeChange={handleFontSizeChange}
-                  onColorChange={handleColorChange}
-                  onOpacityChange={handleOpacityChange}
-                />
-              </TabsContent>
-              
-              <TabsContent value="position">
-                <PositionSelector
-                  position={videoParams.textPosition}
-                  align={videoParams.textAlign}
-                  onPositionChange={handlePositionChange}
-                  onAlignChange={handleAlignmentChange}
-                />
-              </TabsContent>
-              
-              <TabsContent value="music">
-                <MusicSelector
-                  selectedMusic={videoParams.musicUrl}
-                  volume={videoParams.musicVolume}
-                  onMusicChange={handleMusicSelect}
-                  onVolumeChange={handleVolumeChange}
-                />
-              </TabsContent>
-              
-              <TabsContent value="template">
-                <div className="grid grid-cols-2 gap-4">
-                  {templates.map((template) => (
-                    <div
-                      key={template.id}
-                      className={`cursor-pointer rounded-lg overflow-hidden border-2 ${
-                        videoParams.selectedTemplate === template.id
-                          ? 'border-blue-500'
-                          : 'border-transparent'
-                      }`}
-                      onClick={() => handleTemplateSelect(template.id)}
-                    >
-                      <div className="aspect-video bg-gray-800">
-                        <img
-                          src={template.thumbnail}
-                          alt={template.name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="p-2 text-sm font-medium">{template.name}</div>
-                    </div>
-                  ))}
-                </div>
-              </TabsContent>
-            </Tabs>
-          
-            <div className="mt-8">
-              {isRendering ? (
-                <div className="space-y-4">
-                  <Progress value={renderProgress} />
-                  <p className="text-center">Rendering: {renderProgress}%</p>
-                </div>
-              ) : renderId ? (
-                <Button
-                  className="w-full"
-                  onClick={handleDownloadVideo}
-                >
-                  Download Video
-                </Button>
-              ) : (
-                <Button
-                  className="w-full"
-                  onClick={handleRenderVideo}
-                >
-                  Render Video
-                </Button>
-              )}
+    <div className="min-h-screen bg-gray-100">
+      {/* Main content area */}
+      <div className="container mx-auto py-8 px-4">
+        <h1 className="text-3xl font-bold mb-8 text-gray-800">Create Your UGC Video</h1>
+        
+        {isLoading ? (
+          <div className="flex items-center justify-center h-64 bg-white rounded-xl shadow-sm">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              <p className="text-gray-500">Loading video templates...</p>
             </div>
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="flex flex-col lg:flex-row gap-8">
+            {/* Video Preview - Takes more space on larger screens */}
+            <div className="lg:w-2/3 flex flex-col">
+              <div className="bg-gray-900 rounded-xl overflow-hidden shadow-xl">
+                {selectedTemplate ? (
+                  <div className="relative">
+                    {/* Video container with fixed 9:16 aspect ratio for mobile-style videos */}
+                    <div className="mx-auto" style={{ maxWidth: '500px' }}>
+                      <div className="relative" style={{ paddingBottom: '177.78%' }}> {/* 9:16 aspect ratio */}
+                        <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
+                          <Player
+                            component={VideoComposition}
+                            durationInFrames={(selectedTemplate?.duration || 15) * 30} // 30fps
+                            fps={30}
+                            compositionWidth={1080}
+                            compositionHeight={1920} // 9:16 aspect ratio for mobile videos
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              borderRadius: '12px',
+                            }}
+                            controls
+                            inputProps={{
+                              ...videoParams,
+                              templateUrl: selectedTemplate?.url,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-96 bg-gray-800 text-gray-400 rounded-xl">
+                    <p className="text-center px-8">No template selected. Please select a template from the Template tab.</p>
+                  </div>
+                )}
+              </div>
+              
+              {/* Render/Download buttons */}
+              <div className="mt-6 bg-white p-6 rounded-xl shadow-sm">
+                <div className="flex justify-center space-x-4">
+                  <Button 
+                    onClick={handleRenderVideo} 
+                    disabled={isRendering || !selectedTemplate}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isRendering ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+                        <span>Rendering... {renderProgress}%</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+                        </svg>
+                        <span>Render Video</span>
+                      </>
+                    )}
+                  </Button>
+                  
+                  {renderId && (
+                    <Button 
+                      onClick={handleDownloadVideo}
+                      disabled={isRendering || renderProgress < 100}
+                      className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                      <span>{isRendering ? `Wait (${renderProgress}%)` : 'Download'}</span>
+                    </Button>
+                  )}
+                </div>
+                
+                {/* Render progress indicator */}
+                {isRendering && (
+                  <div className="mt-4">
+                    <div className="w-full bg-gray-200 rounded-full h-2.5">
+                      <div 
+                        className="bg-blue-600 h-2.5 rounded-full transition-all duration-300 ease-in-out" 
+                        style={{ width: `${renderProgress}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-center text-sm text-gray-500 mt-2">
+                      Rendering your video... {renderProgress}% complete
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Editor Controls - Takes less space */}
+            <div className="lg:w-1/3 bg-white p-6 rounded-xl shadow-sm">
+              <Tabs defaultValue="text" className="space-y-6">
+                <TabsList className="grid grid-cols-4 mb-6 bg-gray-100 p-1 rounded-lg">
+                  <TabsTrigger value="text" className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md">Text</TabsTrigger>
+                  <TabsTrigger value="position" className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md">Position</TabsTrigger>
+                  <TabsTrigger value="music" className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md">Music</TabsTrigger>
+                  <TabsTrigger value="template" className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md">Template</TabsTrigger>
+                </TabsList>
+              
+                <TabsContent value="text" className="space-y-4">
+                  <TextEditor
+                    text={videoParams.text}
+                    fontSize={videoParams.fontSize}
+                    textColor={videoParams.textColor}
+                    textOpacity={videoParams.textOpacity}
+                    onTextChange={handleTextChange}
+                    onFontSizeChange={handleFontSizeChange}
+                    onColorChange={handleColorChange}
+                    onOpacityChange={handleOpacityChange}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="position" className="space-y-4">
+                  <PositionSelector
+                    position={videoParams.textPosition}
+                    align={videoParams.textAlign}
+                    onPositionChange={handlePositionChange}
+                    onAlignChange={handleAlignmentChange}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="music" className="space-y-4">
+                  <MusicSelector
+                    selectedMusic={videoParams.musicUrl}
+                    volume={videoParams.musicVolume}
+                    onMusicChange={handleMusicSelect}
+                    onVolumeChange={handleVolumeChange}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="template" className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    {templates.map((template) => (
+                      <div
+                        key={template.id}
+                        className={`cursor-pointer rounded-lg overflow-hidden border-2 transition-all hover:shadow-md ${
+                          videoParams.selectedTemplate === template.id
+                            ? 'border-blue-500 ring-2 ring-blue-200'
+                            : 'border-transparent'
+                        }`}
+                        onClick={() => handleTemplateSelect(template.id)}
+                      >
+                        <div className="aspect-[9/16] bg-gray-800"> {/* 9:16 aspect ratio for template thumbnails */}
+                          <img
+                            src={template.thumbnail}
+                            alt={template.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="p-2 text-sm font-medium">{template.name}</div>
+                      </div>
+                    ))}
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

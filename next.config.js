@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const { withSentryConfig } = require("@sentry/nextjs");
 const { Config } = require('@remotion/cli/config');
+const path = require('path');
 
 // Remotion Configuration
 Config.setVideoImageFormat('jpeg');
@@ -70,10 +71,19 @@ const nextConfig = {
     ignoreDuringBuilds: true
   },
   images: {
-    domains: ['assets.aceternity.com'],
+    domains: ['assets.aceternity.com', 'res.cloudinary.com'],
   },
-  // Note: esmExternals was removed as it's not supported with Turbopack
-  experimental: {},
+  // Disable Turbopack for specific routes
+  experimental: {
+    turbo: {
+      rules: {
+        // Disable Turbopack for render API routes
+        '**/**/api/render/**': {
+          turbo: false,
+        },
+      },
+    },
+  },
   webpack: (config, { isServer }) => {
     // Handle media files
     config.module.rules.push({
@@ -88,14 +98,24 @@ const nextConfig = {
       },
     });
 
+    // Handle README.md files
+    config.module.rules.push({
+      test: /\.md$/,
+      type: 'asset/source',
+    });
+
     // Handle Remotion's requirements
     if (!isServer) {
       // Add fallbacks for Node.js modules
       config.resolve.fallback = {
         ...config.resolve.fallback,
         fs: false,
-        path: false,
-        os: false,
+        path: require.resolve('path-browserify'),
+        os: require.resolve('os-browserify/browser'),
+        crypto: require.resolve('crypto-browserify'),
+        stream: require.resolve('stream-browserify'),
+        buffer: require.resolve('buffer/'),
+        util: require.resolve('util/'),
       };
       
       // Ensure proper handling of ESM modules
@@ -106,6 +126,14 @@ const nextConfig = {
           fullySpecified: false,
         },
       });
+
+      // Polyfills for browser
+      config.plugins.push(
+        new config.webpack.ProvidePlugin({
+          Buffer: ['buffer', 'Buffer'],
+          process: 'process/browser',
+        })
+      );
     }
     
     // Explicitly mark Remotion packages as external to avoid bundling issues
@@ -113,6 +141,13 @@ const nextConfig = {
       const externals = [...(config.externals || [])]; 
       config.externals = [...externals, /^@remotion\/.*$/, /^remotion$/];
     }
+
+    // Ignore specific problematic modules
+    config.ignoreWarnings = [
+      { module: /node_modules\/@esbuild\/.*\/README\.md/ },
+      { module: /node_modules\/jest-worker/ },
+      { module: /node_modules\/browserslist/ },
+    ];
 
     return config;
   },
@@ -126,6 +161,10 @@ const nextConfig = {
       {
         source: '/music/:path*',
         destination: '/api/music/:path*',
+      },
+      {
+        source: '/renders/:path*',
+        destination: '/api/download/:path*',
       }
     ];
     

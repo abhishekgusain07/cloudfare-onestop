@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getRenderInfo } from '../../render/route';
+import fs from 'fs';
+import path from 'path';
 
 export async function GET(request: NextRequest, { params }: { params: { renderId: string } }) {
   const renderId = params.renderId;
@@ -16,30 +18,44 @@ export async function GET(request: NextRequest, { params }: { params: { renderId
     return Response.redirect(renderInfo.downloadUrl);
   }
   
-  // For local development/testing, we can simulate a download
-  // In a real implementation, you would serve the actual file from storage
+  // For local rendering, serve the actual file
   if (renderInfo.status === 'completed') {
-    // Create a mock video response for demonstration purposes
-    // In production, you would serve the actual file from your storage
-    return new Response(
-      `This is a simulated video download for render ID: ${renderId}\n` +
-      `In production, this would be a real video file.\n` +
-      `Video parameters: ${JSON.stringify(renderInfo.params, null, 2)}`,
-      {
+    // Check if the file exists in the public/renders directory
+    const videoPath = path.join(process.cwd(), 'public', 'renders', `${renderId}.mp4`);
+    
+    if (fs.existsSync(videoPath)) {
+      // Read the file and serve it
+      const videoBuffer = fs.readFileSync(videoPath);
+      
+      return new Response(videoBuffer, {
         headers: {
-          'Content-Type': 'text/plain',
-          'Content-Disposition': `attachment; filename="video-${renderId}.txt"`,
+          'Content-Type': 'video/mp4',
+          'Content-Disposition': `attachment; filename="video-${renderId}.mp4"`,
         },
-      }
-    );
+      });
+    } else {
+      console.error(`Video file not found at ${videoPath}`);
+      return new Response('Video file not found', { status: 404 });
+    }
   }
   
   // If the video is still rendering
   if (renderInfo.status === 'rendering') {
+    const progress = renderInfo.progress || 0;
     return Response.json({
       error: 'Video is still rendering',
       status: 'rendering',
+      progress,
     }, { status: 202 });
+  }
+  
+  // If the rendering failed
+  if (renderInfo.status === 'failed') {
+    return Response.json({
+      error: 'Video rendering failed',
+      status: 'failed',
+      message: renderInfo.error || 'Unknown error',
+    }, { status: 500 });
   }
   
   return new Response('Video not available', { status: 404 });

@@ -73,18 +73,12 @@ const nextConfig = {
   images: {
     domains: ['assets.aceternity.com', 'res.cloudinary.com'],
   },
-  // Disable Turbopack for specific routes
+  // Fixed experimental configuration
   experimental: {
-    turbo: {
-      rules: {
-        // Disable Turbopack for render API routes
-        '**/**/api/render/**': {
-          turbo: false,
-        },
-      },
-    },
+    // Remove turbo rules - they're causing issues
+    // turbo: false, // Uncomment this line if you want to completely disable Turbopack
   },
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, dev }) => {
     // Handle media files
     config.module.rules.push({
       test: /\.(mp4|webm|ogg|mp3|wav|flac|aac)$/,
@@ -98,10 +92,28 @@ const nextConfig = {
       },
     });
 
-    // Handle README.md files
+    // FIXED: Handle README.md files properly
     config.module.rules.push({
       test: /\.md$/,
-      type: 'asset/source',
+      type: 'asset/resource',
+      generator: {
+        filename: 'static/[hash][ext]',
+      },
+    });
+
+    // FIXED: Add externals for esbuild platform binaries
+    config.externals = config.externals || [];
+    if (!Array.isArray(config.externals)) {
+      config.externals = [config.externals];
+    }
+    
+    config.externals.push({
+      '@esbuild/darwin-arm64': 'commonjs @esbuild/darwin-arm64',
+      '@esbuild/darwin-x64': 'commonjs @esbuild/darwin-x64',
+      '@esbuild/linux-arm64': 'commonjs @esbuild/linux-arm64',
+      '@esbuild/linux-x64': 'commonjs @esbuild/linux-x64',
+      '@esbuild/win32-arm64': 'commonjs @esbuild/win32-arm64',
+      '@esbuild/win32-x64': 'commonjs @esbuild/win32-x64',
     });
 
     // Handle Remotion's requirements
@@ -128,26 +140,44 @@ const nextConfig = {
       });
 
       // Polyfills for browser
+      const webpack = require('webpack');
       config.plugins.push(
-        new config.webpack.ProvidePlugin({
+        new webpack.ProvidePlugin({
           Buffer: ['buffer', 'Buffer'],
           process: 'process/browser',
         })
       );
     }
     
-    // Explicitly mark Remotion packages as external to avoid bundling issues
+    // FIXED: Better externals handling for server-side
     if (isServer) {
-      const externals = [...(config.externals || [])]; 
-      config.externals = [...externals, /^@remotion\/.*$/, /^remotion$/];
+      // Keep existing externals but handle them properly
+      const existingExternals = Array.isArray(config.externals) ? config.externals : [config.externals].filter(Boolean);
+      config.externals = [
+        ...existingExternals,
+        // Only externalize Remotion packages on server-side in production
+        ...(process.env.NODE_ENV === 'production' ? [/^@remotion\/.*$/, /^remotion$/] : [])
+      ];
     }
 
-    // Ignore specific problematic modules
+    // FIXED: Better ignore warnings configuration
     config.ignoreWarnings = [
-      { module: /node_modules\/@esbuild\/.*\/README\.md/ },
+      { module: /node_modules\/@esbuild\/.*\/README\.md$/ },
       { module: /node_modules\/jest-worker/ },
       { module: /node_modules\/browserslist/ },
+      /Critical dependency: the request of a dependency is an expression/,
     ];
+
+    // FIXED: Add resolve alias to ignore problematic esbuild files
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@esbuild/darwin-arm64/README.md': false,
+      '@esbuild/darwin-x64/README.md': false,
+      '@esbuild/linux-arm64/README.md': false,
+      '@esbuild/linux-x64/README.md': false,
+      '@esbuild/win32-arm64/README.md': false,
+      '@esbuild/win32-x64/README.md': false,
+    };
 
     return config;
   },
@@ -216,4 +246,4 @@ const sentryWebpackPluginOptions = {
 // Only apply Sentry configuration if enabled
 module.exports = config.monitoring.sentry.enabled 
   ? withSentryConfig(nextConfig, sentryWebpackPluginOptions)
-  : nextConfig; 
+  : nextConfig;

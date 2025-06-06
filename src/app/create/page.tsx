@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
+import { videoRenderingClient } from '@/utils/videoRenderingClient';
 
 // Define the video parameters interface
 export interface VideoParams {
@@ -57,6 +58,30 @@ export default function CreatePage() {
   const [renderProgress, setRenderProgress] = useState(0);
   const [renderId, setRenderId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [renderStatus, setRenderStatus] = useState<'idle' | 'rendering' | 'completed' | 'failed'>('idle');
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+
+  // Check video rendering server status on mount
+  useEffect(() => {
+    const checkServerStatus = async () => {
+      try {
+        const health = await videoRenderingClient.checkHealth();
+        if (health.status === 'ok') {
+          setServerStatus('online');
+        } else {
+          setServerStatus('offline');
+          toast.error('Video rendering server is not responding');
+        }
+      } catch (error) {
+        console.error('Server health check failed:', error);
+        setServerStatus('offline');
+        toast.error('Cannot connect to video rendering server. Please make sure it\'s running on port 3001.');
+      }
+    };
+
+    checkServerStatus();
+  }, []);
 
   // Fetch templates from the API
   useEffect(() => {
@@ -139,98 +164,119 @@ export default function CreatePage() {
     setVideoParams(prev => ({ ...prev, selectedTemplate: templateId }));
   };
 
-  // Handle video rendering
+  // Handle video rendering with the new client
   const handleRenderVideo = async () => {
     if (!selectedTemplate) {
       toast.error('Please select a video template');
       return;
     }
+
+    if (serverStatus !== 'online') {
+      toast.error('Video rendering server is not available. Please check if it\'s running.');
+      return;
+    }
     
     setIsRendering(true);
     setRenderProgress(0);
+    setRenderStatus('rendering');
+    setDownloadUrl(null);
     
     try {
-      const response = await fetch('/api/render', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          videoParams,
-          template: selectedTemplate,
-        }),
-      });
+      // Start the render
+      const result = await videoRenderingClient.startRender(videoParams, selectedTemplate);
       
-      const data = await response.json();
-      
-      if (data.success) {
-        setRenderId(data.renderId);
+      if (result.success && result.renderId) {
+        setRenderId(result.renderId);
         toast.success('Video rendering started!');
         
-        // Poll for render status
-        const statusInterval = setInterval(async () => {
-          try {
-            const statusResponse = await fetch(`/api/render/${data.renderId}/status`);
-            if (!statusResponse.ok) {
-              console.error('Error fetching render status:', await statusResponse.text());
-              return;
+        // Wait for completion with progress updates
+        const finalStatus = await videoRenderingClient.waitForRender(
+          result.renderId,
+          (progress) => {
+            setRenderProgress(progress);
+            console.log(`Render progress: ${progress}%`);
+          },
+          1500 // Poll every 1.5 seconds for more responsive UI
+        );
+        
+        if (finalStatus.success) {
+          if (finalStatus.status === 'completed') {
+            setRenderStatus('completed');
+            setRenderProgress(100);
+            if (finalStatus.downloadUrl) {
+              const fullDownloadUrl = videoRenderingClient.getDownloadUrl(finalStatus.downloadUrl);
+              setDownloadUrl(fullDownloadUrl);
             }
-            
-            const statusData = await statusResponse.json();
-            console.log('Render status:', statusData);
-            
-            if (statusData.status === 'completed') {
-              clearInterval(statusInterval);
-              setIsRendering(false);
-              setRenderProgress(100);
-              toast.success('Video rendering complete! Click Download to get your video.');
-            } else if (statusData.status === 'failed') {
-              clearInterval(statusInterval);
-              setIsRendering(false);
-              toast.error(statusData.error || 'Video rendering failed. Please try again.');
-            } else if (statusData.status === 'rendering') {
-              setRenderProgress(statusData.progress || 0);
-            }
-          } catch (error) {
-            console.error('Error checking render status:', error);
+            toast.success('Video rendering complete! Click Download to get your video.');
+          } else if (finalStatus.status === 'failed') {
+            setRenderStatus('failed');
+            toast.error(finalStatus.error || 'Video rendering failed. Please try again.');
           }
-        }, 2000);
+        } else {
+          setRenderStatus('failed');
+          toast.error(finalStatus.error || 'Failed to get render status');
+        }
       } else {
-        setIsRendering(false);
-        toast.error(data.error || 'Failed to start rendering');
+        setRenderStatus('failed');
+        toast.error(result.error || 'Failed to start rendering');
       }
     } catch (error) {
       console.error('Error rendering video:', error);
-      setIsRendering(false);
+      setRenderStatus('failed');
       toast.error('An error occurred while rendering the video');
+    } finally {
+      setIsRendering(false);
     }
   };
 
   // Handle video download
   const handleDownloadVideo = async () => {
-    if (!renderId) return;
+    if (!downloadUrl) {
+      toast.error('Download URL not available');
+      return;
+    }
     
     try {
-      // Check if the render is complete before downloading
-      const statusResponse = await fetch(`/api/render/${renderId}/status`);
-      const statusData = await statusResponse.json();
+      // Create a temporary link element and trigger download
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `video_${renderId || Date.now()}.mp4`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       
-      if (statusData.status === 'completed') {
-        // Direct download via window location
-        window.location.href = `/api/download/${renderId}`;
-      } else if (statusData.status === 'rendering') {
-        toast.info(`Video is still rendering (${statusData.progress || 0}% complete). Please wait.`);
-      } else {
-        toast.error('Video is not available for download yet.');
-      }
+      toast.success('Download started!');
     } catch (error) {
-      console.error('Error checking render status before download:', error);
-      toast.error('Error preparing download. Please try again.');
+      console.error('Error downloading video:', error);
+      toast.error('Error downloading video. Please try again.');
     }
+  };
+
+  // Reset render state
+  const handleResetRender = () => {
+    setRenderStatus('idle');
+    setRenderProgress(0);
+    setRenderId(null);
+    setDownloadUrl(null);
+    setIsRendering(false);
   };
 
   return (
     <div className="min-h-screen bg-gray-100">
+      {/* Server Status Indicator */}
+      {serverStatus !== 'online' && (
+        <div className={`w-full p-3 text-center text-sm font-medium ${
+          serverStatus === 'checking' 
+            ? 'bg-yellow-100 text-yellow-800' 
+            : 'bg-red-100 text-red-800'
+        }`}>
+          {serverStatus === 'checking' 
+            ? 'Checking video rendering server...' 
+            : 'Video rendering server is offline. Please start the backend server (npm run dev in backend folder).'
+          }
+        </div>
+      )}
+
       {/* Main content area */}
       <div className="container mx-auto py-8 px-4">
         <h1 className="text-3xl font-bold mb-8 text-gray-800">Create Your UGC Video</h1>
@@ -286,7 +332,7 @@ export default function CreatePage() {
                 <div className="flex justify-center space-x-4">
                   <Button 
                     onClick={handleRenderVideo} 
-                    disabled={isRendering || !selectedTemplate}
+                    disabled={isRendering || !selectedTemplate || serverStatus !== 'online'}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isRendering ? (
@@ -304,16 +350,27 @@ export default function CreatePage() {
                     )}
                   </Button>
                   
-                  {renderId && (
+                  {renderStatus === 'completed' && downloadUrl && (
                     <Button 
                       onClick={handleDownloadVideo}
-                      disabled={isRendering || renderProgress < 100}
-                      className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
                       </svg>
-                      <span>{isRendering ? `Wait (${renderProgress}%)` : 'Download'}</span>
+                      <span>Download Video</span>
+                    </Button>
+                  )}
+
+                  {renderStatus === 'failed' && (
+                    <Button 
+                      onClick={handleResetRender}
+                      className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                      </svg>
+                      <span>Try Again</span>
                     </Button>
                   )}
                 </div>
@@ -329,6 +386,23 @@ export default function CreatePage() {
                     </div>
                     <p className="text-center text-sm text-gray-500 mt-2">
                       Rendering your video... {renderProgress}% complete
+                    </p>
+                  </div>
+                )}
+
+                {/* Status messages */}
+                {renderStatus === 'completed' && (
+                  <div className="mt-4 p-3 bg-green-100 border border-green-300 rounded-lg">
+                    <p className="text-green-700 text-sm text-center">
+                      ✅ Video rendering completed successfully! Your video is ready for download.
+                    </p>
+                  </div>
+                )}
+
+                {renderStatus === 'failed' && (
+                  <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded-lg">
+                    <p className="text-red-700 text-sm text-center">
+                      ❌ Video rendering failed. Please try again or check the server logs.
                     </p>
                   </div>
                 )}

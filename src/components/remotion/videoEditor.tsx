@@ -1,11 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, ComponentType } from 'react';
 import { Player, PlayerRef } from '@remotion/player';
-import { VideoComposition } from '../components/VideoComposition';
-import { TextEditor } from '../components/TextEditor';
-import { PositionSelector } from '../components/PositionSelector';
-import { MusicSelector } from '../components/MusicSelector';
-import { VideoTemplateSelector } from '../components/VideoTemplateSelector';
-
+import { VideoComposition } from './videoComposition';
+import { TextEditor } from './texteditor';
+import { PositionSelector } from './positionselector';
+import { MusicSelector } from './musicselector';
+import {VideoTemplateSelector} from './videotemplate';
 // Types for our video parameters
 export interface VideoParams {
   selectedTemplate: string;
@@ -15,6 +14,7 @@ export interface VideoParams {
   fontSize: number;
   textColor: string;
   musicUrl?: string;
+  textOpacity: number;
   musicVolume: number;
 }
 
@@ -29,6 +29,7 @@ const VideoEditorPage: React.FC = () => {
     textAlign: 'center',
     fontSize: 48,
     textColor: '#ffffff',
+    textOpacity: 1,
     musicVolume: 0.5,
   });
 
@@ -86,8 +87,8 @@ const VideoEditorPage: React.FC = () => {
               <div className="aspect-video bg-black rounded-lg overflow-hidden">
                 <Player
                   ref={playerRef}
-                  component={VideoComposition}
-                  inputProps={videoParams}
+                  component={VideoComposition as unknown as ComponentType<Record<string, unknown>>}
+                  inputProps={videoParams as unknown as Record<string, unknown>}
                   durationInFrames={selectedTemplate ? selectedTemplate.duration * 30 : 450} // 30fps
                   compositionWidth={1920}
                   compositionHeight={1080}
@@ -125,12 +126,14 @@ const VideoEditorPage: React.FC = () => {
 
             {/* Text Editor */}
             <TextEditor
+              textOpacity={videoParams.textOpacity}
               text={videoParams.text}
               fontSize={videoParams.fontSize}
               textColor={videoParams.textColor}
               onTextChange={(text) => updateVideoParams({ text })}
               onFontSizeChange={(fontSize) => updateVideoParams({ fontSize })}
               onColorChange={(textColor) => updateVideoParams({ textColor })}
+              onOpacityChange={(textOpacity) => updateVideoParams({ textOpacity })}
             />
 
             {/* Position Selector */}

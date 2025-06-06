@@ -1,5 +1,5 @@
-import React from 'react';
-import { AbsoluteFill, Video, Audio, useVideoConfig, interpolate, useCurrentFrame } from 'remotion';
+import React, { useEffect } from 'react';
+import { AbsoluteFill, Video, Audio, useVideoConfig, interpolate, useCurrentFrame, delayRender, continueRender } from 'remotion';
 
 interface VideoCompositionProps {
   selectedTemplate: string;
@@ -15,6 +15,26 @@ interface VideoCompositionProps {
   templateUrl?: string;
 }
 
+// Utility function to transform video URL for Remotion rendering
+const transformVideoUrl = (url?: string): string => {
+  if (!url) {
+    return '/videos/urban-lifestyle.mp4';
+  }
+
+  // If it's a relative path without leading slash, add it
+  if (!url.startsWith('/')) {
+    url = `/${url}`;
+  }
+
+  // For Remotion rendering, transform the URL to point to the correct server
+  if (url.startsWith('/ugc/videos/')) {
+    // Use absolute URL to ensure Remotion can load the video
+    return `http://localhost:3001${url}`;
+  }
+
+  return url;
+};
+
 export const VideoComposition: React.FC<VideoCompositionProps> = ({
   selectedTemplate,
   text,
@@ -28,6 +48,44 @@ export const VideoComposition: React.FC<VideoCompositionProps> = ({
 }:VideoCompositionProps) => {
   const { width, height, durationInFrames } = useVideoConfig();
   const frame = useCurrentFrame();
+
+  // Transform the video URL
+  const transformedTemplateUrl = transformVideoUrl(templateUrl);
+
+  // Add video loading check with error handling
+  useEffect(() => {
+    const handle = delayRender('Loading video');
+    
+    const videoElement = document.createElement('video');
+    videoElement.src = transformedTemplateUrl;
+    
+    const onLoadedMetadata = () => {
+      console.log('Video loaded successfully:', {
+        src: transformedTemplateUrl,
+        duration: videoElement.duration,
+        width: videoElement.videoWidth,
+        height: videoElement.videoHeight
+      });
+      continueRender(handle);
+    };
+    
+    const onError = (error: any) => {
+      console.error('Video loading error:', {
+        src: transformedTemplateUrl,
+        error: error,
+        fullError: JSON.stringify(error, Object.getOwnPropertyNames(error))
+      });
+      continueRender(handle);
+    };
+
+    videoElement.addEventListener('loadedmetadata', onLoadedMetadata);
+    videoElement.addEventListener('error', onError);
+
+    return () => {
+      videoElement.removeEventListener('loadedmetadata', onLoadedMetadata);
+      videoElement.removeEventListener('error', onError);
+    };
+  }, [transformedTemplateUrl]);
 
   // Text animation - fade in over first 30 frames
   const textOpacity = interpolate(frame, [0, 30], [0, 1], {
@@ -82,7 +140,7 @@ export const VideoComposition: React.FC<VideoCompositionProps> = ({
     <AbsoluteFill>
       {/* Background Video */}
       <Video
-        src={templateUrl}
+        src={transformedTemplateUrl}
         style={{
           width: '100%',
           height: '100%',

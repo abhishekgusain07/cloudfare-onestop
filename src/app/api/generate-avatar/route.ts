@@ -18,35 +18,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Limit number of images to prevent excessive generation
+    const imageCount = Math.min(Math.max(n, 1), 3);
+
     // Generate image using OpenAI DALL-E
     const response = await openai.images.generate({
       model: "dall-e-3",
       prompt: prompt,
-      n: n,
+      n: imageCount,
       size: size as '1024x1024' | '512x512' | '256x256',
       quality: 'standard',
       style: 'vivid'
     });
 
-    // Extract image URL
-    const imageUrl = response.data?.[0]?.url;
+    // Extract image URLs
+    const images = response.data
+      .map(img => img.url)
+      .filter((url): url is string => url !== undefined);
 
-    if (!imageUrl) {
+    if (images.length === 0) {
       return NextResponse.json(
-        { error: 'Failed to generate image' }, 
+        { error: 'Failed to generate images' }, 
         { status: 500 }
       );
     }
 
     return NextResponse.json({ 
-      image: imageUrl,
-      prompt: prompt 
+      images: images,
+      prompt: prompt,
+      count: images.length
     });
 
   } catch (error) {
     console.error('Avatar generation error:', error);
     return NextResponse.json(
-      { error: 'Failed to generate avatar' }, 
+      { error: 'Failed to generate avatar', details: String(error) }, 
       { status: 500 }
     );
   }
@@ -56,6 +62,11 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   return NextResponse.json({
     message: 'OpenAI Avatar Generation Endpoint',
-    instructions: 'Send a POST request with a prompt to generate an image'
+    instructions: 'Send a POST request with a prompt to generate images',
+    parameters: {
+      prompt: 'Required: Description of the image',
+      n: 'Optional: Number of images (1-3)',
+      size: 'Optional: Image size (1024x1024, 512x512, 256x256)'
+    }
   });
 } 

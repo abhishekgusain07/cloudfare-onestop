@@ -97,7 +97,16 @@ export default function CreateAvatarPage() {
     }
 
     try {
-      const response = await fetch(generatedImage);
+      // Use proxy route to download image
+      const response = await fetch(`/api/download-image?url=${encodeURIComponent(generatedImage)}`, {
+        method: 'GET'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.details || 'Failed to download image');
+      }
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -107,10 +116,22 @@ export default function CreateAvatarPage() {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+      
       toast.success('Image downloaded successfully!');
     } catch (error) {
-      console.error('Download error:', error);
-      toast.error('Failed to download image');
+      console.error('Download error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        imageUrl: generatedImage
+      });
+      
+      // More specific error messaging
+      if (error instanceof TypeError) {
+        toast.error('Network error. Please check your internet connection.');
+      } else if (error instanceof Error) {
+        toast.error(`Failed to download image: ${error.message}`);
+      } else {
+        toast.error('An unexpected error occurred while downloading the image');
+      }
     }
   };
 

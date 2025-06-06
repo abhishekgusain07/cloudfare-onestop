@@ -2,18 +2,19 @@
 
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Loader2Icon, 
-  SparklesIcon, 
   ImageIcon, 
-  DownloadIcon, 
-  VideoIcon,
+  UploadIcon, 
+  SparklesIcon, 
+  DownloadIcon,
   XIcon 
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Image from 'next/image';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { 
   Select, 
   SelectContent, 
@@ -21,39 +22,62 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 
-// Prompt enhancement utility
-const enhancePrompt = (originalPrompt: string, style?: string): string => {
-  const styleMap = {
-    'photorealistic': `High-quality, photorealistic image of ${originalPrompt}`,
-    'cinematic': `Cinematic, professional-grade visualization of ${originalPrompt}`,
-    'artistic': `Detailed, vibrant, and stylized artistic representation of ${originalPrompt}`,
-    'minimalist': `Clean, minimalist, modern interpretation of ${originalPrompt}`,
-    'vintage': `Nostalgic, vintage-style illustration of ${originalPrompt}`
-  };
-
-  return styleMap[style as keyof typeof styleMap] || 
-         `High-quality, photorealistic image of ${originalPrompt}`;
-};
-
-export default function CreateAvatarPage() {
-  const [prompt, setPrompt] = useState('');
+export default function GhibliTransformPage() {
+  // State for managing uploaded and generated images
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
-  
-  // Customization states
-  const [imageStyle, setImageStyle] = useState('photorealistic');
-  const [imageSize, setImageSize] = useState<'1024x1024' | '512x512' | '256x256'>('1024x1024');
+
+  // Ref for file input
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Styling and transformation options
+  const [ghibliStyle, setGhibliStyle] = useState('classic');
+  const [colorPalette, setColorPalette] = useState('pastel');
 
   // Abort controller for cancelling request
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const handleGenerateAvatar = async () => {
-    if (!prompt.trim()) {
-      toast.error('Please enter a description for your avatar');
+  // Handle file upload
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type and size
+      const validTypes = ['image/jpeg', 'image/png', 'image/gif'];
+      const maxSize = 5 * 1024 * 1024; // 5MB
+
+      if (!validTypes.includes(file.type)) {
+        toast.error('Please upload a valid image (JPEG, PNG, or GIF)');
+        return;
+      }
+
+      if (file.size > maxSize) {
+        toast.error('Image size should be less than 5MB');
+        return;
+      }
+
+      // Read and set uploaded image
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setUploadedImage(reader.result as string);
+        setGeneratedImage(null);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Trigger file input
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Generate Ghibli-style image
+  const handleGenerateGhibliImage = async () => {
+    if (!uploadedImage) {
+      toast.error('Please upload an image first');
       return;
     }
 
@@ -62,40 +86,37 @@ export default function CreateAvatarPage() {
 
     setIsLoading(true);
     try {
-      // Enhance the prompt with selected style
-      const enhancedPrompt = enhancePrompt(prompt, imageStyle);
-
-      const response = await fetch('/api/generate-avatar', {
+      const response = await fetch('/api/generate-ghibli', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          prompt: enhancedPrompt,
-          n: 1,
-          size: imageSize
+          imageBase64: uploadedImage,
+          style: ghibliStyle,
+          colorPalette: colorPalette
         }),
         signal: abortControllerRef.current.signal
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate avatar');
+        throw new Error('Failed to generate Ghibli-style image');
       }
 
       const data = await response.json();
       
-      if (data.images && data.images.length > 0) {
-        setGeneratedImage(data.images[0]);
-        toast.success('Avatar generated successfully!');
+      if (data.image) {
+        setGeneratedImage(data.image);
+        toast.success('Ghibli-style image generated successfully!');
       } else {
         toast.error('No image was generated');
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
-        toast.info('Avatar generation cancelled');
+        toast.info('Ghibli image generation cancelled');
       } else {
-        console.error('Avatar generation error:', error);
-        toast.error('Failed to generate avatar. Please try again.');
+        console.error('Ghibli image generation error:', error);
+        toast.error('Failed to generate Ghibli-style image. Please try again.');
       }
     } finally {
       setIsLoading(false);
@@ -103,6 +124,7 @@ export default function CreateAvatarPage() {
     }
   };
 
+  // Cancel generation
   const handleCancelGeneration = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -110,6 +132,7 @@ export default function CreateAvatarPage() {
     }
   };
 
+  // Download generated image
   const handleDownloadImage = async () => {
     if (!generatedImage) {
       toast.error('No image to download');
@@ -117,7 +140,6 @@ export default function CreateAvatarPage() {
     }
 
     try {
-      // Use proxy route to download image
       const response = await fetch(`/api/download-image?url=${encodeURIComponent(generatedImage)}`, {
         method: 'GET'
       });
@@ -131,7 +153,7 @@ export default function CreateAvatarPage() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `avatar_${Date.now()}.png`;
+      link.download = `ghibli_style_${Date.now()}.png`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -144,24 +166,8 @@ export default function CreateAvatarPage() {
         imageUrl: generatedImage
       });
       
-      // More specific error messaging
-      if (error instanceof TypeError) {
-        toast.error('Network error. Please check your internet connection.');
-      } else if (error instanceof Error) {
-        toast.error(`Failed to download image: ${error.message}`);
-      } else {
-        toast.error('An unexpected error occurred while downloading the image');
-      }
+      toast.error('Failed to download image');
     }
-  };
-
-  const handleUseForVideo = () => {
-    if (!generatedImage) {
-      toast.error('Select an image first');
-      return;
-    }
-    // TODO: Implement logic to use generated image in video creation
-    toast.info('Image ready to be used in video creation');
   };
 
   return (
@@ -169,78 +175,106 @@ export default function CreateAvatarPage() {
       <Card className="w-full">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-2xl font-bold">
-            <SparklesIcon className="w-6 h-6 text-purple-500" />
-            AI Avatar Generator
+            <SparklesIcon className="w-6 h-6 text-blue-500" />
+            Ghibli Style Transformer
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-2 gap-8">
-            {/* Left Side: Customization and Prompt */}
+            {/* Left Side: Upload and Customization */}
             <div className="space-y-6">
+              {/* Image Upload */}
+              <div>
+                <Label className="mb-2">Upload Your Image</Label>
+                <input 
+                  type="file" 
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  accept="image/jpeg,image/png,image/gif"
+                  className="hidden"
+                />
+                <div 
+                  className={`
+                    w-full h-64 border-2 border-dashed rounded-lg flex items-center 
+                    justify-center cursor-pointer hover:bg-gray-50 transition-colors
+                    ${uploadedImage ? 'border-green-500' : 'border-gray-300'}
+                  `}
+                  onClick={triggerFileInput}
+                >
+                  {uploadedImage ? (
+                    <Image 
+                      src={uploadedImage} 
+                      alt="Uploaded" 
+                      width={250} 
+                      height={250} 
+                      className="max-h-full object-contain rounded-lg"
+                    />
+                  ) : (
+                    <div className="text-center text-gray-500">
+                      <UploadIcon className="mx-auto mb-2 h-10 w-10" />
+                      <p>Click to upload an image</p>
+                      <p className="text-xs">(JPEG, PNG, GIF up to 5MB)</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Customization Options */}
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label className="mb-2">Image Style</Label>
+                  <Label className="mb-2">Ghibli Style</Label>
                   <Select 
-                    value={imageStyle} 
-                    onValueChange={(value) => setImageStyle(value)}
+                    value={ghibliStyle} 
+                    onValueChange={(value) => setGhibliStyle(value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select Style" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="photorealistic">Photorealistic</SelectItem>
-                      <SelectItem value="cinematic">Cinematic</SelectItem>
-                      <SelectItem value="artistic">Artistic</SelectItem>
-                      <SelectItem value="minimalist">Minimalist</SelectItem>
-                      <SelectItem value="vintage">Vintage</SelectItem>
+                      <SelectItem value="classic">Classic Ghibli</SelectItem>
+                      <SelectItem value="miyazaki">Miyazaki Inspired</SelectItem>
+                      <SelectItem value="modern">Modern Ghibli</SelectItem>
+                      <SelectItem value="watercolor">Watercolor</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div>
-                  <Label className="mb-2">Image Size</Label>
+                  <Label className="mb-2">Color Palette</Label>
                   <Select 
-                    value={imageSize} 
-                    onValueChange={(value: '1024x1024' | '512x512' | '256x256') => setImageSize(value)}
+                    value={colorPalette} 
+                    onValueChange={(value) => setColorPalette(value)}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select Size" />
+                      <SelectValue placeholder="Select Palette" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="1024x1024">Large (1024x1024)</SelectItem>
-                      <SelectItem value="512x512">Medium (512x512)</SelectItem>
-                      <SelectItem value="256x256">Small (256x256)</SelectItem>
+                      <SelectItem value="pastel">Pastel</SelectItem>
+                      <SelectItem value="vibrant">Vibrant</SelectItem>
+                      <SelectItem value="muted">Muted</SelectItem>
+                      <SelectItem value="vintage">Vintage</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
-
-              <div>
-                <Label className="mb-2">Prompt Description</Label>
-                <Textarea
-                  placeholder="Describe your ideal avatar (e.g., 'Professional headshot of a tech entrepreneur')"
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  className="min-h-[200px]"
-                />
-              </div>
               
+              {/* Generate Button */}
               <div className="flex space-x-4">
                 <Button 
-                  onClick={handleGenerateAvatar} 
-                  disabled={isLoading}
+                  onClick={handleGenerateGhibliImage} 
+                  disabled={isLoading || !uploadedImage}
                   className="flex-1"
                   size="lg"
                 >
                   {isLoading ? (
                     <>
                       <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
-                      Generating...
+                      Transforming...
                     </>
                   ) : (
                     <>
                       <ImageIcon className="mr-2 h-4 w-4" />
-                      Generate Avatar
+                      Transform to Ghibli
                     </>
                   )}
                 </Button>
@@ -257,12 +291,12 @@ export default function CreateAvatarPage() {
               </div>
             </div>
 
-            {/* Right Side: Image Gallery */}
+            {/* Right Side: Generated Image */}
             <div className="flex items-center justify-center">
               {!generatedImage ? (
                 <div className="w-full aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
                   <p className="text-gray-500 text-center">
-                    Your generated avatar will appear here
+                    Your Ghibli-style image will appear here
                   </p>
                 </div>
               ) : (
@@ -272,7 +306,7 @@ export default function CreateAvatarPage() {
                 >
                   <Image 
                     src={generatedImage} 
-                    alt="Generated Avatar" 
+                    alt="Ghibli-style Image" 
                     fill 
                     className="object-cover rounded-lg group-hover:scale-105 transition-transform duration-300"
                   />
@@ -289,18 +323,6 @@ export default function CreateAvatarPage() {
                       <DownloadIcon className="mr-2 h-4 w-4" />
                       Download
                     </Button>
-                    <Button 
-                      size="lg" 
-                      variant="outline"
-                      className="flex-1"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleUseForVideo();
-                      }}
-                    >
-                      <VideoIcon className="mr-2 h-4 w-4" />
-                      Use in Video
-                    </Button>
                   </div>
                 </div>
               )}
@@ -316,7 +338,7 @@ export default function CreateAvatarPage() {
             <div className="relative w-full h-[80vh]">
               <Image 
                 src={generatedImage} 
-                alt="Fullscreen Generated Avatar" 
+                alt="Fullscreen Ghibli-style Image" 
                 fill 
                 className="object-contain"
               />
@@ -335,4 +357,4 @@ export default function CreateAvatarPage() {
       </Dialog>
     </div>
   );
-} 
+}

@@ -18,23 +18,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Limit number of images to prevent excessive generation
-    const imageCount = Math.min(Math.max(n, 1), 3);
+    // DALL-E 3 only supports generating 1 image at a time
+    const imageCount = Math.min(Math.max(n, 1), 1);
 
-    // Generate image using OpenAI DALL-E
-    const response = await openai.images.generate({
-      model: "dall-e-3",
-      prompt: prompt,
-      n: imageCount,
-      size: size as '1024x1024' | '512x512' | '256x256',
-      quality: 'standard',
-      style: 'vivid'
-    });
+    // Generate images sequentially for DALL-E 3
+    const images: string[] = [];
+    for (let i = 0; i < n; i++) {
+      const response = await openai.images.generate({
+        model: "dall-e-3",
+        prompt: prompt,
+        n: 1,
+        size: size as '1024x1024' | '512x512' | '256x256',
+        quality: 'standard',
+        style: 'vivid'
+      });
 
-    // Extract image URLs
-    const images = response.data
-      .map(img => img.url)
-      .filter((url): url is string => url !== undefined);
+      // Safely extract image URL
+      if (response && response.data && response.data.length > 0 && response.data[0].url) {
+        images.push(response.data[0].url);
+      }
+    }
 
     if (images.length === 0) {
       return NextResponse.json(
@@ -65,7 +68,7 @@ export async function GET() {
     instructions: 'Send a POST request with a prompt to generate images',
     parameters: {
       prompt: 'Required: Description of the image',
-      n: 'Optional: Number of images (1-3)',
+      n: 'Optional: Number of images (max 1 for DALL-E 3)',
       size: 'Optional: Image size (1024x1024, 512x512, 256x256)'
     }
   });

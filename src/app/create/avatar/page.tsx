@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,6 +21,7 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 // Prompt enhancement utility
 const enhancePrompt = (originalPrompt: string, style?: string): string => {
@@ -38,11 +39,11 @@ const enhancePrompt = (originalPrompt: string, style?: string): string => {
 
 export default function CreateAvatarPage() {
   const [prompt, setPrompt] = useState('');
-  const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   
   // Customization states
-  const [imageCount, setImageCount] = useState(1);
   const [imageStyle, setImageStyle] = useState('photorealistic');
   const [imageSize, setImageSize] = useState<'1024x1024' | '512x512' | '256x256'>('1024x1024');
 
@@ -64,7 +65,7 @@ export default function CreateAvatarPage() {
         },
         body: JSON.stringify({ 
           prompt: enhancedPrompt,
-          n: imageCount,
+          n: 1,
           size: imageSize
         }),
       });
@@ -76,10 +77,10 @@ export default function CreateAvatarPage() {
       const data = await response.json();
       
       if (data.images && data.images.length > 0) {
-        setGeneratedImages(data.images);
-        toast.success(`${data.images.length} Avatar(s) generated successfully!`);
+        setGeneratedImage(data.images[0]);
+        toast.success('Avatar generated successfully!');
       } else {
-        toast.error('No images were generated');
+        toast.error('No image was generated');
       }
     } catch (error) {
       console.error('Avatar generation error:', error);
@@ -89,9 +90,14 @@ export default function CreateAvatarPage() {
     }
   };
 
-  const handleDownloadImage = async (imageUrl: string) => {
+  const handleDownloadImage = async () => {
+    if (!generatedImage) {
+      toast.error('No image to download');
+      return;
+    }
+
     try {
-      const response = await fetch(imageUrl);
+      const response = await fetch(generatedImage);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -108,8 +114,8 @@ export default function CreateAvatarPage() {
     }
   };
 
-  const handleUseForVideo = (imageUrl: string) => {
-    if (!imageUrl) {
+  const handleUseForVideo = () => {
+    if (!generatedImage) {
       toast.error('Select an image first');
       return;
     }
@@ -149,42 +155,23 @@ export default function CreateAvatarPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div>
-                  <Label className="mb-2">Number of Images</Label>
+                  <Label className="mb-2">Image Size</Label>
                   <Select 
-                    value={imageCount.toString()} 
-                    onValueChange={(value) => setImageCount(Number(value))}
+                    value={imageSize} 
+                    onValueChange={(value: '1024x1024' | '512x512' | '256x256') => setImageSize(value)}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select Count" />
+                      <SelectValue placeholder="Select Size" />
                     </SelectTrigger>
                     <SelectContent>
-                      {[1, 2, 3].map(count => (
-                        <SelectItem key={count} value={count.toString()}>
-                          {count} Image{count > 1 ? 's' : ''}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="1024x1024">Large (1024x1024)</SelectItem>
+                      <SelectItem value="512x512">Medium (512x512)</SelectItem>
+                      <SelectItem value="256x256">Small (256x256)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-
-              <div>
-                <Label className="mb-2">Image Size</Label>
-                <Select 
-                  value={imageSize} 
-                  onValueChange={(value: '1024x1024' | '512x512' | '256x256') => setImageSize(value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Size" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1024x1024">Large (1024x1024)</SelectItem>
-                    <SelectItem value="512x512">Medium (512x512)</SelectItem>
-                    <SelectItem value="256x256">Small (256x256)</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
 
               <div>
@@ -218,56 +205,81 @@ export default function CreateAvatarPage() {
             </div>
 
             {/* Right Side: Image Gallery */}
-            <div>
-              {generatedImages.length === 0 ? (
+            <div className="flex items-center justify-center">
+              {!generatedImage ? (
                 <div className="w-full aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
                   <p className="text-gray-500 text-center">
-                    Your generated avatars will appear here
+                    Your generated avatar will appear here
                   </p>
                 </div>
               ) : (
-                <div className="grid md:grid-cols-2 gap-4">
-                  {generatedImages.map((imageUrl, index) => (
-                    <div 
-                      key={imageUrl} 
-                      className="relative group"
+                <div 
+                  className="w-full aspect-square relative group cursor-pointer"
+                  onClick={() => setIsImageModalOpen(true)}
+                >
+                  <Image 
+                    src={generatedImage} 
+                    alt="Generated Avatar" 
+                    fill 
+                    className="object-cover rounded-lg group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <div className="absolute bottom-4 left-4 right-4 flex gap-4">
+                    <Button 
+                      size="lg" 
+                      variant="secondary"
+                      className="flex-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownloadImage();
+                      }}
                     >
-                      <div className="relative w-full aspect-square rounded-lg overflow-hidden shadow-lg">
-                        <Image 
-                          src={imageUrl} 
-                          alt={`Generated Avatar ${index + 1}`} 
-                          fill 
-                          className="object-cover group-hover:scale-110 transition-transform"
-                        />
-                      </div>
-                      <div className="absolute bottom-2 left-2 right-2 flex gap-2">
-                        <Button 
-                          size="sm" 
-                          variant="secondary"
-                          className="flex-1"
-                          onClick={() => handleDownloadImage(imageUrl)}
-                        >
-                          <DownloadIcon className="mr-2 h-4 w-4" />
-                          Download
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          className="flex-1"
-                          onClick={() => handleUseForVideo(imageUrl)}
-                        >
-                          <VideoIcon className="mr-2 h-4 w-4" />
-                          Use in Video
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                      <DownloadIcon className="mr-2 h-4 w-4" />
+                      Download
+                    </Button>
+                    <Button 
+                      size="lg" 
+                      variant="outline"
+                      className="flex-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleUseForVideo();
+                      }}
+                    >
+                      <VideoIcon className="mr-2 h-4 w-4" />
+                      Use in Video
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Fullscreen Image Modal */}
+      <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
+        <DialogContent className="max-w-5xl w-full p-0 bg-transparent">
+          {generatedImage && (
+            <div className="relative w-full h-[80vh]">
+              <Image 
+                src={generatedImage} 
+                alt="Fullscreen Generated Avatar" 
+                fill 
+                className="object-contain"
+              />
+              <Button 
+                variant="secondary" 
+                size="lg" 
+                className="absolute bottom-4 left-1/2 transform -translate-x-1/2"
+                onClick={handleDownloadImage}
+              >
+                <DownloadIcon className="mr-2 h-4 w-4" />
+                Download High-Res Image
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 

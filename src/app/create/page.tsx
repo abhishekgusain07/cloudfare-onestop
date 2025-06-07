@@ -262,222 +262,179 @@ export default function CreatePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Server Status Indicator */}
-      {serverStatus !== 'online' && (
-        <div className={`w-full p-3 text-center text-sm font-medium ${
-          serverStatus === 'checking' 
-            ? 'bg-yellow-100 text-yellow-800' 
-            : 'bg-red-100 text-red-800'
-        }`}>
-          {serverStatus === 'checking' 
-            ? 'Checking video rendering server...' 
-            : 'Video rendering server is offline. Please start the backend server (npm run dev in backend folder).'
-          }
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6 md:p-10">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
+            Create Your Marketing Video
+          </h1>
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            Customize your video with templates, text, music, and more. Get started in just a few clicks!
+          </p>
         </div>
-      )}
 
-      {/* Main content area */}
-      <div className="container mx-auto py-8 px-4">
-        <h1 className="text-3xl font-bold mb-8 text-gray-800">Create Your UGC Video</h1>
-        
-        {isLoading ? (
-          <div className="flex items-center justify-center h-64 bg-white rounded-xl shadow-sm">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
-              <p className="text-gray-500">Loading video templates...</p>
+        {/* Server Status Indicator */}
+        <div className="mb-6 flex justify-center">
+          {serverStatus === 'checking' && (
+            <div className="bg-yellow-100 text-yellow-800 px-4 py-2 rounded-lg flex items-center">
+              <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Checking server status...
+            </div>
+          )}
+          {serverStatus === 'online' && (
+            <div className="bg-green-100 text-green-800 px-4 py-2 rounded-lg">
+              ✅ Video Rendering Server Online
+            </div>
+          )}
+          {serverStatus === 'offline' && (
+            <div className="bg-red-100 text-red-800 px-4 py-2 rounded-lg">
+              ❌ Video Rendering Server Offline
+            </div>
+          )}
+        </div>
+
+        {/* Main Content Grid */}
+        <div className="grid md:grid-cols-2 gap-8">
+          {/* Left Column: Template & Preview */}
+          <div className="space-y-6">
+            {/* Template Selection */}
+            <div className="bg-white shadow-lg rounded-xl p-6">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Select a Template</h2>
+              {isLoading ? (
+                <div className="flex justify-center items-center h-40">
+                  <svg className="animate-spin h-10 w-10 text-blue-500" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {templates.map((template) => (
+                    <button
+                      key={template.id}
+                      onClick={() => handleTemplateSelect(template.id)}
+                      className={`
+                        relative overflow-hidden rounded-lg border-2 transition-all duration-300
+                        ${videoParams.selectedTemplate === template.id 
+                          ? 'border-blue-500 ring-4 ring-blue-200' 
+                          : 'border-gray-200 hover:border-blue-300'}
+                      `}
+                    >
+                      <img 
+                        src={template.thumbnail} 
+                        alt={template.name} 
+                        className="w-full h-32 object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-all"></div>
+                      {videoParams.selectedTemplate === template.id && (
+                        <div className="absolute top-2 right-2 bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center">
+                          ✓
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Video Preview */}
+            <div className="bg-white shadow-lg rounded-xl p-6">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Video Preview</h2>
+              {selectedTemplate && (
+                <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                  <Player
+                    component={VideoComposition}
+                    inputProps={{
+                      selectedTemplate: selectedTemplate.id,
+                      text: videoParams.text,
+                      textPosition: videoParams.textPosition,
+                      textAlign: videoParams.textAlign,
+                      fontSize: videoParams.fontSize,
+                      textColor: videoParams.textColor,
+                      textOpacity: videoParams.textOpacity,
+                      musicUrl: videoParams.musicUrl,
+                      musicVolume: videoParams.musicVolume,
+                    }}
+                    durationInFrames={selectedTemplate.duration * 30} // Assuming 30 fps
+                    compositionWidth={1080}
+                    compositionHeight={1920}
+                    fps={30}
+                    className="w-full h-full"
+                  />
+                </div>
+              )}
             </div>
           </div>
-        ) : (
-          <div className="flex flex-col lg:flex-row gap-8">
-            {/* Video Preview - Takes more space on larger screens */}
-            <div className="lg:w-2/3 flex flex-col">
-              <div className="bg-gray-900 rounded-xl overflow-hidden shadow-xl">
-                {selectedTemplate ? (
-                  <div className="relative">
-                    {/* Video container with fixed 9:16 aspect ratio for mobile-style videos */}
-                    <div className="mx-auto" style={{ maxWidth: '500px' }}>
-                      <div className="relative" style={{ paddingBottom: '177.78%' }}> {/* 9:16 aspect ratio */}
-                        <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
-                          <Player
-                            component={VideoComposition}
-                            durationInFrames={(selectedTemplate?.duration || 15) * 30} // 30fps
-                            fps={30}
-                            compositionWidth={1080}
-                            compositionHeight={1920} // 9:16 aspect ratio for mobile videos
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              borderRadius: '12px',
-                            }}
-                            controls
-                            inputProps={{
-                              ...videoParams,
-                              templateUrl: selectedTemplate?.url,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
+
+          {/* Right Column: Editing Tools */}
+          <div className="space-y-6">
+            {/* Text Editing */}
+            <div className="bg-white shadow-lg rounded-xl p-6">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Customize Text</h2>
+              <TextEditor 
+                text={videoParams.text}
+                fontSize={videoParams.fontSize}
+                textColor={videoParams.textColor}
+                textOpacity={videoParams.textOpacity}
+                onTextChange={handleTextChange}
+                onFontSizeChange={handleFontSizeChange}
+                onColorChange={handleColorChange}
+                onOpacityChange={handleOpacityChange}
+              />
+            </div>
+
+            {/* Music Selection */}
+            <div className="bg-white shadow-lg rounded-xl p-6">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Add Background Music</h2>
+              <MusicSelector 
+                selectedMusic={videoParams.musicUrl}
+                volume={videoParams.musicVolume}
+                onMusicChange={handleMusicSelect}
+                onVolumeChange={handleVolumeChange}
+              />
+            </div>
+
+            {/* Render Controls */}
+            <div className="bg-white shadow-lg rounded-xl p-6">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Render Video</h2>
+              {isRendering ? (
+                <div className="space-y-4">
+                  <Progress value={renderProgress} className="w-full" />
+                  <div className="text-center text-gray-600">
+                    {renderStatus === 'rendering' 
+                      ? `Rendering... ${renderProgress}%` 
+                      : renderStatus === 'completed' 
+                        ? 'Render Complete!' 
+                        : 'Render Failed'}
                   </div>
-                ) : (
-                  <div className="flex items-center justify-center h-96 bg-gray-800 text-gray-400 rounded-xl">
-                    <p className="text-center px-8">No template selected. Please select a template from the Template tab.</p>
-                  </div>
-                )}
-              </div>
-              
-              {/* Render/Download buttons */}
-              <div className="mt-6 bg-white p-6 rounded-xl shadow-sm">
-                <div className="flex justify-center space-x-4">
+                </div>
+              ) : (
+                <div className="flex space-x-4">
                   <Button 
                     onClick={handleRenderVideo} 
-                    disabled={isRendering || !selectedTemplate || serverStatus !== 'online'}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={serverStatus !== 'online' || !selectedTemplate}
+                    className="flex-1"
                   >
-                    {isRendering ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
-                        <span>Rendering... {renderProgress}%</span>
-                      </>
-                    ) : (
-                      <>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
-                        </svg>
-                        <span>Render Video</span>
-                      </>
-                    )}
+                    Render Video
                   </Button>
-                  
-                  {renderStatus === 'completed' && downloadUrl && (
+                  {downloadUrl && (
                     <Button 
+                      variant="secondary" 
                       onClick={handleDownloadVideo}
-                      className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2"
+                      className="flex-1"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                      <span>Download Video</span>
-                    </Button>
-                  )}
-
-                  {renderStatus === 'failed' && (
-                    <Button 
-                      onClick={handleResetRender}
-                      className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-                      </svg>
-                      <span>Try Again</span>
+                      Download Video
                     </Button>
                   )}
                 </div>
-                
-                {/* Render progress indicator */}
-                {isRendering && (
-                  <div className="mt-4">
-                    <div className="w-full bg-gray-200 rounded-full h-2.5">
-                      <div 
-                        className="bg-blue-600 h-2.5 rounded-full transition-all duration-300 ease-in-out" 
-                        style={{ width: `${renderProgress}%` }}
-                      ></div>
-                    </div>
-                    <p className="text-center text-sm text-gray-500 mt-2">
-                      Rendering your video... {renderProgress}% complete
-                    </p>
-                  </div>
-                )}
-
-                {/* Status messages */}
-                {renderStatus === 'completed' && (
-                  <div className="mt-4 p-3 bg-green-100 border border-green-300 rounded-lg">
-                    <p className="text-green-700 text-sm text-center">
-                      ✅ Video rendering completed successfully! Your video is ready for download.
-                    </p>
-                  </div>
-                )}
-
-                {renderStatus === 'failed' && (
-                  <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded-lg">
-                    <p className="text-red-700 text-sm text-center">
-                      ❌ Video rendering failed. Please try again or check the server logs.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            {/* Editor Controls - Takes less space */}
-            <div className="lg:w-1/3 bg-white p-6 rounded-xl shadow-sm">
-              <Tabs defaultValue="text" className="space-y-6">
-                <TabsList className="grid grid-cols-4 mb-6 bg-gray-100 p-1 rounded-lg">
-                  <TabsTrigger value="text" className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md">Text</TabsTrigger>
-                  <TabsTrigger value="position" className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md">Position</TabsTrigger>
-                  <TabsTrigger value="music" className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md">Music</TabsTrigger>
-                  <TabsTrigger value="template" className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md">Template</TabsTrigger>
-                </TabsList>
-              
-                <TabsContent value="text" className="space-y-4">
-                  <TextEditor
-                    text={videoParams.text}
-                    fontSize={videoParams.fontSize}
-                    textColor={videoParams.textColor}
-                    textOpacity={videoParams.textOpacity}
-                    onTextChange={handleTextChange}
-                    onFontSizeChange={handleFontSizeChange}
-                    onColorChange={handleColorChange}
-                    onOpacityChange={handleOpacityChange}
-                  />
-                </TabsContent>
-                
-                <TabsContent value="position" className="space-y-4">
-                  <PositionSelector
-                    position={videoParams.textPosition}
-                    align={videoParams.textAlign}
-                    onPositionChange={handlePositionChange}
-                    onAlignChange={handleAlignmentChange}
-                  />
-                </TabsContent>
-                
-                <TabsContent value="music" className="space-y-4">
-                  <MusicSelector
-                    selectedMusic={videoParams.musicUrl}
-                    volume={videoParams.musicVolume}
-                    onMusicChange={handleMusicSelect}
-                    onVolumeChange={handleVolumeChange}
-                  />
-                </TabsContent>
-                
-                <TabsContent value="template" className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    {templates.map((template) => (
-                      <div
-                        key={template.id}
-                        className={`cursor-pointer rounded-lg overflow-hidden border-2 transition-all hover:shadow-md ${
-                          videoParams.selectedTemplate === template.id
-                            ? 'border-blue-500 ring-2 ring-blue-200'
-                            : 'border-transparent'
-                        }`}
-                        onClick={() => handleTemplateSelect(template.id)}
-                      >
-                        <div className="aspect-[9/16] bg-gray-800"> {/* 9:16 aspect ratio for template thumbnails */}
-                          <img
-                            src={template.thumbnail}
-                            alt={template.name}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div className="p-2 text-sm font-medium">{template.name}</div>
-                      </div>
-                    ))}
-                  </div>
-                </TabsContent>
-              </Tabs>
+              )}
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

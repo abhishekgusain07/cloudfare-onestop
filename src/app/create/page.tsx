@@ -37,13 +37,10 @@ interface Template {
   created?: Date;
 }
 
-// Empty initial state for video templates
-const initialTemplates: Template[] = [];
-
 export default function CreatePage() {
   const router = useRouter();
   const [videoParams, setVideoParams] = useState<VideoParams>({
-    selectedTemplate: 'template1',
+    selectedTemplate: '',
     text: 'Your brand message here...',
     textPosition: 'center',
     textAlign: 'center',
@@ -52,7 +49,7 @@ export default function CreatePage() {
     textOpacity: 1,
     musicVolume: 0.5,
   });
-  const [templates, setTemplates] = useState<Template[]>(initialTemplates);
+  const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [isRendering, setIsRendering] = useState(false);
   const [renderProgress, setRenderProgress] = useState(0);
@@ -97,8 +94,12 @@ export default function CreatePage() {
         
         // Set default template if available
         if (data.length > 0) {
-          setSelectedTemplate(data[0]);
-          setVideoParams(prev => ({ ...prev, selectedTemplate: data[0].id }));
+          const firstTemplate = data[0];
+          setSelectedTemplate(firstTemplate);
+          setVideoParams(prev => ({ 
+            ...prev, 
+            selectedTemplate: firstTemplate.id // This should be just the filename like "1.mp4"
+          }));
         }
       } catch (error) {
         console.error('Error fetching templates:', error);
@@ -268,7 +269,7 @@ export default function CreatePage() {
         <div className="mb-8 text-center">
           <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
             Create Your Marketing Video with AI
-        </h1>
+          </h1>
           <p className="text-gray-600 max-w-2xl mx-auto">
             Customize your video with templates, text, music, and more. Get started in just a few clicks!
           </p>
@@ -335,6 +336,9 @@ export default function CreatePage() {
                           ✓
                         </div>
                       )}
+                      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-2">
+                        {template.name}
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -344,12 +348,12 @@ export default function CreatePage() {
             {/* Video Preview */}
             <div className="bg-white shadow-lg rounded-xl p-6">
               <h2 className="text-xl font-semibold text-gray-800 mb-4">Video Preview</h2>
-              {selectedTemplate && (
-                <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
+              {selectedTemplate && videoParams.selectedTemplate ? (
+                <div className="aspect-[9/16] bg-gray-100 rounded-lg overflow-hidden">
                   <Player
                     component={VideoComposition}
                     inputProps={{
-                      selectedTemplate: selectedTemplate.id,
+                      selectedTemplate: videoParams.selectedTemplate, // Pass just the filename
                       text: videoParams.text,
                       textPosition: videoParams.textPosition,
                       textAlign: videoParams.textAlign,
@@ -358,13 +362,27 @@ export default function CreatePage() {
                       textOpacity: videoParams.textOpacity,
                       musicUrl: videoParams.musicUrl,
                       musicVolume: videoParams.musicVolume,
+                      templateUrl: undefined, // Let VideoComposition handle URL construction
                     }}
                     durationInFrames={selectedTemplate.duration * 30} // Assuming 30 fps
                     compositionWidth={1080}
                     compositionHeight={1920}
                     fps={30}
                     className="w-full h-full"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                    }}
                   />
+                </div>
+              ) : (
+                <div className="aspect-[9/16] bg-gray-100 rounded-lg flex items-center justify-center">
+                  <div className="text-gray-500 text-center">
+                    <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M12 5v.01M12 19v.01M12 12h.01M7 12h.01M17 12h.01" />
+                    </svg>
+                    <p>Select a template to preview</p>
+                  </div>
                 </div>
               )}
             </div>
@@ -387,6 +405,17 @@ export default function CreatePage() {
               />
             </div>
 
+            {/* Position Selector */}
+            <div className="bg-white shadow-lg rounded-xl p-6">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Text Position & Alignment</h2>
+              <PositionSelector
+                position={videoParams.textPosition}
+                align={videoParams.textAlign}
+                onPositionChange={handlePositionChange }
+                onAlignChange={handleAlignmentChange}
+              />
+            </div>
+
             {/* Music Selection */}
             <div className="bg-white shadow-lg rounded-xl p-6">
               <h2 className="text-xl font-semibold text-gray-800 mb-4">Add Background Music</h2>
@@ -401,35 +430,77 @@ export default function CreatePage() {
             {/* Render Controls */}
             <div className="bg-white shadow-lg rounded-xl p-6">
               <h2 className="text-xl font-semibold text-gray-800 mb-4">Render Video</h2>
-              {isRendering ? (
+              {renderStatus === 'rendering' ? (
                 <div className="space-y-4">
                   <Progress value={renderProgress} className="w-full" />
                   <div className="text-center text-gray-600">
-                    {renderStatus === 'rendering' 
-                      ? `Rendering... ${renderProgress}%` 
-                      : renderStatus === 'completed' 
-                        ? 'Render Complete!' 
-                        : 'Render Failed'}
+                    Rendering... {renderProgress}%
+                  </div>
+                  <div className="text-center text-sm text-gray-500">
+                    This may take a few minutes depending on video length
                   </div>
                 </div>
-              ) : (
-                <div className="flex space-x-4">
-                  <Button 
-                    onClick={handleRenderVideo} 
-                    disabled={serverStatus !== 'online' || !selectedTemplate}
-                    className="flex-1"
-                  >
-                    Render Video
-                  </Button>
-                  {downloadUrl && (
+              ) : renderStatus === 'completed' ? (
+                <div className="space-y-4">
+                  <div className="text-center text-green-600 font-semibold">
+                    ✅ Render Complete!
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <Button 
-                      variant="secondary" 
                       onClick={handleDownloadVideo}
+                      disabled={!downloadUrl}
                       className="flex-1"
                     >
                       Download Video
                     </Button>
-                  )}
+                    <Button 
+                      variant="outline" 
+                      onClick={handleResetRender}
+                      className="flex-1"
+                    >
+                      Render New Video
+                    </Button>
+                  </div>
+                </div>
+              ) : renderStatus === 'failed' ? (
+                <div className="space-y-4">
+                  <div className="text-center text-red-600 font-semibold">
+                    ❌ Render Failed
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Button 
+                      onClick={handleRenderVideo}
+                      disabled={serverStatus !== 'online' || !selectedTemplate}
+                      className="flex-1"
+                    >
+                      Try Again
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={handleResetRender}
+                      className="flex-1"
+                    >
+                      Reset
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <Button 
+                    onClick={handleRenderVideo} 
+                    disabled={serverStatus !== 'online' || !selectedTemplate || !videoParams.selectedTemplate}
+                    className="w-full"
+                    size="lg"
+                  >
+                    {serverStatus !== 'online' 
+                      ? 'Server Offline' 
+                      : !selectedTemplate 
+                        ? 'Select a Template' 
+                        : 'Render Video'}
+                  </Button>
+                  <div className="text-center text-sm text-gray-500">
+                    High-quality MP4 output • Estimated 2-5 minutes
+                  </div>
                 </div>
               )}
             </div>

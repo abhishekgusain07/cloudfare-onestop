@@ -47,7 +47,7 @@ export const RemotionRoot: React.FC<RemotionRootProps> = ({
       width={1080}
       height={1920}
       defaultProps={{
-        selectedTemplate: 'http://localhost:3001/ugc/videos/1.mp4',
+        selectedTemplate: '1.mp4', // Just the filename, not full URL
         text: 'Your AI-Generated Video',
         textPosition: 'bottom',
         textAlign: 'center',
@@ -55,8 +55,8 @@ export const RemotionRoot: React.FC<RemotionRootProps> = ({
         textColor: '#FFFFFF',
         musicVolume: 0.5,
         musicUrl: undefined,
-        templateUrl: 'http://localhost:3001/ugc/videos/1.mp4',
+        templateUrl: undefined, // Let the component handle URL construction
       }}
     />
   );
-}; 
+};

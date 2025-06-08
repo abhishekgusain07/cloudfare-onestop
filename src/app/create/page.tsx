@@ -267,8 +267,8 @@ export default function CreatePage() {
         {/* Header */}
         <div className="mb-8 text-center">
           <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
-            Create Your Marketing Video
-          </h1>
+            Create Your Marketing Video with AI
+        </h1>
           <p className="text-gray-600 max-w-2xl mx-auto">
             Customize your video with templates, text, music, and more. Get started in just a few clicks!
           </p>

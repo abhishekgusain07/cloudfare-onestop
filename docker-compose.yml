@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - BACKEND_URL=http://backend:3001
+    depends_on:
+      - backend
+    volumes:
+      - ./public/ugc:/app/public/ugc
+    networks:
+      - app-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - HOST=0.0.0.0
+    volumes:
+      - ./backend/src:/app/src
+      - ./public/ugc:/app/public/ugc
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge 

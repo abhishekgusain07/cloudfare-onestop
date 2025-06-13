@@ -159,3 +159,48 @@ To disable Sentry:
 ### Testing Error Monitoring
 
 To test Sentry integration, visit the `/sentry-example-page` route in your application, which includes buttons to trigger test errors.
+
+# One Stop Marketing - Docker Setup
+
+## Prerequisites
+- Docker
+- Docker Compose
+- Node.js (optional, for local development)
+
+## Project Structure
+- `Dockerfile.frontend`: Dockerfile for Next.js frontend
+- `backend/Dockerfile`: Dockerfile for Express backend
+- `docker-compose.yml`: Docker Compose configuration
+
+## Environment Setup
+
+### Development Environment
+1. Clone the repository
+2. Ensure you have Docker and Docker Compose installed
+3. Create a `public/ugc/videos` directory to store video files
+
+### Running the Application
+```bash
+# Build and start the services
+docker-compose up --build
+
+# Stop the services
+docker-compose down
+
+# Rebuild services without cache
+docker-compose build --no-cache
+```
+
+### Accessing the Application
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:3001`
+
+## Troubleshooting
+- Ensure all video files are placed in `public/ugc/videos/`
+- Check Docker logs for any startup issues
+- Verify network connectivity between services
+
+## Notes
+- The application uses a bridge network for inter-service communication
+- Volumes are used to persist and share video files
+- Non-root users are used for enhanced security

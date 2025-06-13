@@ -1,0 +1,4 @@
+1. Complete the remotion video rendering + preview setup
+2. tweet about it .
+3. deploy it
+

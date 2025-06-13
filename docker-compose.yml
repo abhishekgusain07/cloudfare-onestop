@@ -1,5 +1,4 @@
-version: '3.8'
-
+# Remove the version field - it's obsolete in modern Docker Compose
 services:
   frontend:
     build:
@@ -9,12 +8,21 @@ services:
       - "3000:3000"
     environment:
       - BACKEND_URL=http://backend:3001
+      - NODE_ENV=production
     depends_on:
       - backend
     volumes:
       - ./public/ugc:/app/public/ugc
     networks:
       - app-network
+    restart: unless-stopped
+    # Add resource limits to prevent memory issues
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
 
   backend:
     build:
@@ -25,12 +33,21 @@ services:
     environment:
       - PORT=3001
       - HOST=0.0.0.0
+      - NODE_ENV=production
     volumes:
       - ./backend/src:/app/src
       - ./public/ugc:/app/public/ugc
     networks:
       - app-network
+    restart: unless-stopped
+    # Add resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
 
 networks:
   app-network:
-    driver: bridge 
+    driver: bridge

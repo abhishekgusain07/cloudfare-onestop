@@ -1,5 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { AbsoluteFill, Video, Audio, useVideoConfig, interpolate, useCurrentFrame, delayRender, continueRender } from 'remotion';
+
+// Simple cache to store video metadata and prevent repeated loading
+const videoMetadataCache = new Map<string, { duration: number; width: number; height: number }>();
 
 interface VideoCompositionProps {
   selectedTemplate: string;
@@ -12,6 +15,7 @@ interface VideoCompositionProps {
   musicVolume: number;
   musicUrl?: string;
   templateUrl?: string;
+  onDurationFound?: (duration: number) => void;
 }
 
 // Utility function to transform video URL for Remotion rendering
@@ -97,58 +101,7 @@ const transformVideoUrl = (url?: string, selectedTemplate?: string): string => {
   return defaultUrl;
 };
 
-// Function to check if video URL is accessible and valid  
-const checkVideoUrl = async (url: string): Promise<{ accessible: boolean; error?: string }> => {
-  try {
-    console.log('Checking video URL accessibility:', url);
-    
-    // Try to fetch with a more permissive approach
-    const response = await fetch(url, { 
-      method: 'HEAD',
-      mode: 'cors', // Explicitly set CORS mode
-      cache: 'no-cache'
-    });
-    
-    const contentType = response.headers.get('content-type');
-    console.log('Video URL check result:', { 
-      url, 
-      status: response.status, 
-      statusText: response.statusText,
-      contentType,
-      ok: response.ok 
-    });
-    
-    if (!response.ok) {
-      return { 
-        accessible: false, 
-        error: `HTTP ${response.status}: ${response.statusText}` 
-      };
-    }
-    
-    // Check if it's a video file
-    if (contentType && contentType.startsWith('video/')) {
-      return { accessible: true };
-    }
-    
-    // If no content-type header, check file extension
-    const hasVideoExtension = /\.(mp4|webm|ogg|mov|avi)$/i.test(url);
-    if (hasVideoExtension) {
-      return { accessible: true };
-    }
-    
-    return { 
-      accessible: false, 
-      error: `Invalid content type: ${contentType || 'unknown'}` 
-    };
-    
-  } catch (error) {
-    console.error('Video URL accessibility check failed:', error);
-    return { 
-      accessible: false, 
-      error: `Network error: ${error instanceof Error ? error.message : 'Unknown error'}` 
-    };
-  }
-};
+
 
 export const VideoComposition: React.FC<VideoCompositionProps> = ({
   selectedTemplate,
@@ -160,10 +113,13 @@ export const VideoComposition: React.FC<VideoCompositionProps> = ({
   musicUrl,
   musicVolume,
   templateUrl,
+  onDurationFound,
 }: VideoCompositionProps) => {
   const { width, height, durationInFrames } = useVideoConfig();
   const frame = useCurrentFrame();
   const [videoError, setVideoError] = useState<string | null>(null);
+  const [videoDuration, setVideoDuration] = useState<number | null>(null);
+  const loadingRef = useRef<boolean>(false);
 
   // Transform the video URL with better logic
   const transformedTemplateUrl = transformVideoUrl(templateUrl, selectedTemplate);
@@ -178,110 +134,193 @@ export const VideoComposition: React.FC<VideoCompositionProps> = ({
     durationInFrames
   });
 
-  // Enhanced video loading check with better error handling
+  // Enhanced video loading check with proper resource management
   useEffect(() => {
     const handle = delayRender('Loading and validating video');
+    let isCleanedUp = false;
+    let videoElement: HTMLVideoElement | null = null;
+    let timeoutId: NodeJS.Timeout | null = null;
+    
+          const cleanup = () => {
+        if (isCleanedUp) return;
+        isCleanedUp = true;
+        loadingRef.current = false;
+        
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        
+        if (videoElement) {
+          // Remove all event listeners
+          videoElement.removeEventListener('loadedmetadata', onLoadedMetadata);
+          videoElement.removeEventListener('error', onError);
+          videoElement.removeEventListener('loadstart', onLoadStart);
+          videoElement.removeEventListener('canplay', onCanPlay);
+          
+          // Stop loading and clear source
+          videoElement.pause();
+          videoElement.removeAttribute('src');
+          videoElement.load(); // This stops any ongoing loading
+          videoElement = null;
+        }
+      };
+    
+    const onLoadStart = () => {
+      console.log('Video loading started:', transformedTemplateUrl);
+    };
+    
+    const onCanPlay = () => {
+      console.log('Video can play:', transformedTemplateUrl);
+    };
+    
+          const onLoadedMetadata = () => {
+        if (isCleanedUp || !videoElement) return;
+        
+        const actualDuration = videoElement.duration;
+        const configuredDuration = durationInFrames / 30;
+        
+        console.log('Video metadata loaded successfully:', {
+          src: transformedTemplateUrl,
+          actualDuration: actualDuration,
+          configuredDuration: configuredDuration,
+          durationMismatch: Math.abs(actualDuration - configuredDuration) > 0.5,
+          width: videoElement.videoWidth,
+          height: videoElement.videoHeight,
+          readyState: videoElement.readyState,
+          durationInFrames: durationInFrames
+        });
+        
+        // Cache the metadata to prevent repeated loading
+        videoMetadataCache.set(transformedTemplateUrl, {
+          duration: actualDuration,
+          width: videoElement.videoWidth,
+          height: videoElement.videoHeight
+        });
+        
+        setVideoDuration(actualDuration);
+        
+        // Notify parent component about the actual duration (only once)
+        if (onDurationFound && actualDuration > 0) {
+          onDurationFound(actualDuration);
+        }
+        
+        // Warn if there's a significant duration mismatch
+        if (Math.abs(actualDuration - configuredDuration) > 0.5) {
+          console.warn(`Duration mismatch detected! Actual: ${actualDuration}s, Configured: ${configuredDuration}s`);
+        }
+        
+        setVideoError(null);
+        loadingRef.current = false;
+        continueRender(handle);
+        cleanup(); // Clean up immediately after success
+      };
+    
+          const onError = (event: Event) => {
+        if (isCleanedUp || !videoElement) return;
+        
+        const error = videoElement.error;
+        let errorMessage = 'Unknown video error';
+        
+        if (error) {
+          switch (error.code) {
+            case MediaError.MEDIA_ERR_ABORTED:
+              errorMessage = 'Video loading aborted';
+              break;
+            case MediaError.MEDIA_ERR_NETWORK:
+              errorMessage = 'Network error while loading video';
+              break;
+            case MediaError.MEDIA_ERR_DECODE:
+              errorMessage = 'Video decode error - corrupted file or unsupported codec';
+              break;
+            case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+              errorMessage = 'Video format not supported or file not found';
+              break;
+            default:
+              errorMessage = `Media error code ${error.code}: ${error.message}`;
+          }
+        }
+
+        const fullError = `${errorMessage} (URL: ${transformedTemplateUrl})`;
+        console.error('Video loading error:', {
+          src: transformedTemplateUrl,
+          error: event,
+          errorCode: error?.code,
+          errorMessage: error?.message,
+          interpretedError: errorMessage
+        });
+        
+        setVideoError(fullError);
+        loadingRef.current = false;
+        continueRender(handle);
+        cleanup(); // Clean up after error
+      };
     
     const validateAndLoadVideo = async () => {
       try {
+        if (isCleanedUp || loadingRef.current) return;
+        loadingRef.current = true;
+        
         console.log('Starting video validation for:', transformedTemplateUrl);
         
-        // First, check if the URL is accessible
-        const urlCheck = await checkVideoUrl(transformedTemplateUrl);
-        
-        if (!urlCheck.accessible) {
-          const errorMsg = `Video not accessible: ${transformedTemplateUrl}. ${urlCheck.error || 'Unknown error'}`;
-          console.error(errorMsg);
-          setVideoError(errorMsg);
-          continueRender(handle);
-          return;
-        }
-
-        console.log('Video URL is accessible, creating video element...');
-
-        // Create video element for detailed validation
-        const videoElement = document.createElement('video');
-        videoElement.src = transformedTemplateUrl;
-        videoElement.crossOrigin = 'anonymous';
-        videoElement.preload = 'metadata';
-        
-        const onLoadedMetadata = () => {
-          console.log('Video metadata loaded successfully:', {
-            src: transformedTemplateUrl,
-            duration: videoElement.duration,
-            width: videoElement.videoWidth,
-            height: videoElement.videoHeight,
-            readyState: videoElement.readyState
-          });
+        // Check cache first
+        const cachedMetadata = videoMetadataCache.get(transformedTemplateUrl);
+        if (cachedMetadata) {
+          console.log('Using cached video metadata:', cachedMetadata);
+          setVideoDuration(cachedMetadata.duration);
+          if (onDurationFound && cachedMetadata.duration > 0) {
+            onDurationFound(cachedMetadata.duration);
+          }
           setVideoError(null);
           continueRender(handle);
-        };
+          loadingRef.current = false;
+          return;
+        }
         
-        const onError = (event: Event) => {
-          const error = videoElement.error;
-          let errorMessage = 'Unknown video error';
-          
-          if (error) {
-            switch (error.code) {
-              case MediaError.MEDIA_ERR_ABORTED:
-                errorMessage = 'Video loading aborted';
-                break;
-              case MediaError.MEDIA_ERR_NETWORK:
-                errorMessage = 'Network error while loading video';
-                break;
-              case MediaError.MEDIA_ERR_DECODE:
-                errorMessage = 'Video decode error - corrupted file or unsupported codec';
-                break;
-              case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-                errorMessage = 'Video format not supported or file not found';
-                break;
-              default:
-                errorMessage = `Media error code ${error.code}: ${error.message}`;
-            }
-          }
+        // Skip URL accessibility check for local files to avoid CORS issues
+        // and potential resource exhaustion from repeated HEAD requests
+        console.log('No cached metadata found, loading video metadata...');
 
-          const fullError = `${errorMessage} (URL: ${transformedTemplateUrl})`;
-          console.error('Video loading error:', {
-            src: transformedTemplateUrl,
-            error: event,
-            errorCode: error?.code,
-            errorMessage: error?.message,
-            interpretedError: errorMessage
-          });
-          
-          setVideoError(fullError);
-          continueRender(handle);
-        };
-
+        // Create video element for metadata loading
+        videoElement = document.createElement('video');
+        videoElement.preload = 'metadata'; // Only load metadata, not the full video
+        videoElement.muted = true; // Ensure it's muted to avoid autoplay issues
+        
+        // Add event listeners
+        videoElement.addEventListener('loadstart', onLoadStart);
+        videoElement.addEventListener('canplay', onCanPlay);
         videoElement.addEventListener('loadedmetadata', onLoadedMetadata);
         videoElement.addEventListener('error', onError);
 
-        // Reduced timeout and better error message
-        const timeout = setTimeout(() => {
-          console.warn('Video loading timeout after 10 seconds');
+        // Set timeout for loading
+        timeoutId = setTimeout(() => {
+          if (isCleanedUp) return;
+          console.warn('Video loading timeout after 8 seconds');
           const timeoutError = `Video loading timeout: ${transformedTemplateUrl}. This usually means the file doesn't exist or the server isn't responding.`;
           setVideoError(timeoutError);
           continueRender(handle);
-        }, 10000); // 10 second timeout
+          cleanup();
+        }, 8000); // Reduced timeout to 8 seconds
 
-        // Cleanup function
-        return () => {
-          clearTimeout(timeout);
-          videoElement.removeEventListener('loadedmetadata', onLoadedMetadata);
-          videoElement.removeEventListener('error', onError);
-          videoElement.src = ''; // Clear the src to stop loading
-        };
+        // Start loading - set src last to trigger loading
+        videoElement.src = transformedTemplateUrl;
         
-      } catch (error) {
-        console.error('Video validation failed:', error);
-        const validationError = `Video validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
-        setVideoError(validationError);
-        continueRender(handle);
-      }
+              } catch (error) {
+          if (isCleanedUp) return;
+          console.error('Video validation failed:', error);
+          const validationError = `Video validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
+          setVideoError(validationError);
+          loadingRef.current = false;
+          continueRender(handle);
+          cleanup();
+        }
     };
 
     validateAndLoadVideo();
-  }, [transformedTemplateUrl]);
+    
+    // Return cleanup function
+    return cleanup;
+  }, [transformedTemplateUrl, durationInFrames]);
 
   // Text animation - fade in over first 30 frames
   const textOpacity = interpolate(frame, [0, 30], [0, 1], {
@@ -382,6 +421,8 @@ export const VideoComposition: React.FC<VideoCompositionProps> = ({
         }}
         volume={0.3} // Reduce background video volume to make room for music
         muted={Boolean(musicUrl)} // Mute if we have custom music
+        startFrom={0}
+        endAt={videoDuration ? Math.floor(videoDuration * 30) : durationInFrames} // Use actual duration if available
         onError={(error) => {
           console.error('Remotion Video component error:', error);
           setVideoError(`Remotion Video component error: ${error.message || error}`);

@@ -47,14 +47,21 @@ export default function CreatePage() {
   const [renderStatus, setRenderStatus] = useState<'idle' | 'rendering' | 'completed' | 'failed'>('idle');
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  const [actualVideoDuration, setActualVideoDuration] = useState<number>(30); // Default to 30 seconds
 
   // Hardcoded template data for the single video
   const template = {
     id: '1.mp4',
     name: 'UGC Video 1',
     url: '/ugc/videos/1.mp4',
-    duration: 30, // 30 seconds duration - will be dynamically calculated
+    duration: actualVideoDuration, // Use actual video duration
     thumbnail: '/thumbnails/1.jpg'
+  };
+
+  // Handle when actual video duration is found
+  const handleDurationFound = (duration: number) => {
+    console.log('Actual video duration found:', duration, 'seconds');
+    setActualVideoDuration(duration);
   };
 
   // Check video rendering server status on mount
@@ -281,9 +288,14 @@ export default function CreatePage() {
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg text-slate-800">Video Preview</CardTitle>
-                  <Badge variant="secondary" className="text-xs">
-                    {template.name}
-                  </Badge>
+                  <div className="flex gap-2">
+                    <Badge variant="secondary" className="text-xs">
+                      {Math.round(actualVideoDuration)}s
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      {template.name}
+                    </Badge>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="flex-1 flex items-center justify-center p-6">
@@ -302,8 +314,9 @@ export default function CreatePage() {
                         musicUrl: videoParams.musicUrl,
                         musicVolume: videoParams.musicVolume,
                         templateUrl: template.url, // Use the hardcoded template URL
+                        onDurationFound: handleDurationFound, // Callback for duration
                       }}
-                      durationInFrames={template.duration * 30} // 15 seconds * 30 fps
+                      durationInFrames={Math.round(template.duration * 30)} // duration * 30 fps, rounded
                       compositionWidth={1080}
                       compositionHeight={1920}
                       fps={30}
@@ -312,9 +325,9 @@ export default function CreatePage() {
                         width: '100%',
                         height: '100%',
                       }}
-                      controls
-                      loop
-                      autoPlay
+                      controls={false}
+                      loop={true}
+                      autoPlay={true}
                       showVolumeControls={false}
                       allowFullscreen={false}
                     />

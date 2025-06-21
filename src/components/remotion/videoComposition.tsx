@@ -24,6 +24,12 @@ const transformVideoUrl = (url?: string, selectedTemplate?: string): string => {
     return url;
   }
   
+  // If templateUrl is provided as relative path (from frontend), use it directly
+  if (url && url.startsWith('/ugc/videos/')) {
+    console.log('Using provided templateUrl (relative path):', url);
+    return url;
+  }
+  
   // If selectedTemplate is provided and looks like a filename
   if (selectedTemplate && !selectedTemplate.startsWith('http')) {
     let filename = selectedTemplate;
@@ -38,8 +44,9 @@ const transformVideoUrl = (url?: string, selectedTemplate?: string): string => {
       filename = `${selectedTemplate}.mp4`;
     }
     
-    const videoUrl = `http://localhost:3001/ugc/videos/${filename}`;
-    console.log('Using selectedTemplate to construct URL:', videoUrl);
+    // Use frontend URL (served by Next.js from public folder)
+    const videoUrl = `/ugc/videos/${filename}`;
+    console.log('Using selectedTemplate to construct frontend URL:', videoUrl);
     return videoUrl;
   }
   
@@ -49,32 +56,26 @@ const transformVideoUrl = (url?: string, selectedTemplate?: string): string => {
     return selectedTemplate;
   }
   
-  // If url is a relative path, construct full URL
+  // If url is provided, clean it and use frontend path
   if (url) {
     let cleanUrl = url;
     if (cleanUrl.startsWith('/ugc/videos/')) {
-      cleanUrl = cleanUrl.replace('/ugc/videos/', '');
+      // Already a frontend path, use as is
+      console.log('Using frontend path:', cleanUrl);
+      return cleanUrl;
     } else if (cleanUrl.startsWith('ugc/videos/')) {
-      cleanUrl = cleanUrl.replace('ugc/videos/', '');
+      cleanUrl = `/${cleanUrl}`;
     } else if (cleanUrl.startsWith('/')) {
-      cleanUrl = cleanUrl.substring(1);
+      cleanUrl = `/ugc/videos${cleanUrl}`;
+    } else {
+      cleanUrl = `/ugc/videos/${cleanUrl}`;
     }
     
-    // Handle template naming patterns in URL
-    if (cleanUrl.startsWith('template')) {
-      const templateNumber = cleanUrl.replace('template', '');
-      cleanUrl = `${templateNumber}.mp4`;
-    } else if (!cleanUrl.includes('.')) {
-      // Add .mp4 extension if not present
-      cleanUrl = `${cleanUrl}.mp4`;
-    }
-    
-    const constructedUrl = `http://localhost:3001/ugc/videos/${cleanUrl}`;
-    console.log('Constructed URL from relative path:', constructedUrl);
-    return constructedUrl;
+    console.log('Constructed frontend URL from path:', cleanUrl);
+    return cleanUrl;
   }
   
-  // Fallback - try to use selectedTemplate as filename
+  // Fallback - try to use selectedTemplate as filename with frontend path
   if (selectedTemplate) {
     let filename = selectedTemplate;
     
@@ -85,14 +86,14 @@ const transformVideoUrl = (url?: string, selectedTemplate?: string): string => {
       filename = `${selectedTemplate}.mp4`;
     }
     
-    const fallbackUrl = `http://localhost:3001/ugc/videos/${filename}`;
-    console.log('Using selectedTemplate as fallback filename:', fallbackUrl);
+    const fallbackUrl = `/ugc/videos/${filename}`;
+    console.log('Using selectedTemplate as fallback frontend URL:', fallbackUrl);
     return fallbackUrl;
   }
   
-  // Final fallback - use video 1.mp4 (since you mentioned you have 1.mp4)
-  const defaultUrl = 'http://localhost:3001/ugc/videos/1.mp4';
-  console.log('Using default fallback URL:', defaultUrl);
+  // Final fallback - use frontend video 1.mp4
+  const defaultUrl = '/ugc/videos/1.mp4';
+  console.log('Using default fallback frontend URL:', defaultUrl);
   return defaultUrl;
 };
 
@@ -172,7 +173,9 @@ export const VideoComposition: React.FC<VideoCompositionProps> = ({
     templateUrl,
     transformedTemplateUrl,
     text,
-    textPosition
+    textPosition,
+    frame,
+    durationInFrames
   });
 
   // Enhanced video loading check with better error handling

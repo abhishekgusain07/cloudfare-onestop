@@ -15,60 +15,58 @@ interface VideoCompositionProps {
   onDurationFound?: (duration: number) => void;
 }
 
-// Utility function to transform video URL for Remotion rendering
+// Simplified utility function to transform video URL for R2 compatibility
 const transformVideoUrl = (url?: string, selectedTemplate?: string): string => {
   console.log('Transform video URL called with:', { url, selectedTemplate });
   
+  // If templateUrl is provided and is a full URL (R2 URL), use it directly
+  if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+    console.log('Using provided templateUrl (R2 URL):', url);
+    return url;
+  }
+  
+  // If selectedTemplate is provided and is a full URL (R2 URL), use it directly  
+  if (selectedTemplate && (selectedTemplate.startsWith('http://') || selectedTemplate.startsWith('https://'))) {
+    console.log('Using selectedTemplate (R2 URL):', selectedTemplate);
+    return selectedTemplate;
+  }
+  
+  // Legacy support: For older local file paths or relative paths
   // During Remotion rendering, we need absolute URLs pointing to the backend server
   const isRendering = typeof window === 'undefined' || process.env.NODE_ENV === 'production';
   const baseUrl = isRendering ? 'http://localhost:3001' : '';
   
-  // If templateUrl is provided and is a full URL, use it
-  if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
-    console.log('Using provided templateUrl (full URL):', url);
-    return url;
-  }
-  
-  // If templateUrl is provided as relative path (from frontend), convert to absolute for rendering
+  // If templateUrl is provided as relative path (legacy), convert to absolute for rendering
   if (url && url.startsWith('/ugc/videos/')) {
     const absoluteUrl = `${baseUrl}${url}`;
-    console.log('Converting relative path to absolute URL:', absoluteUrl);
+    console.log('Converting legacy relative path to absolute URL:', absoluteUrl);
     return absoluteUrl;
   }
   
-  // If selectedTemplate is provided and looks like a filename
+  // If selectedTemplate looks like a filename (legacy)
   if (selectedTemplate && !selectedTemplate.startsWith('http')) {
     let filename = selectedTemplate;
     
-    // Handle template naming patterns
+    // Handle template naming patterns (legacy)
     if (selectedTemplate.startsWith('template')) {
-      // Convert 'template1' to '1.mp4', 'template2' to '2.mp4', etc.
       const templateNumber = selectedTemplate.replace('template', '');
       filename = `${templateNumber}.mp4`;
     } else if (!selectedTemplate.includes('.')) {
-      // If it's just a number or name without extension, add .mp4
       filename = `${selectedTemplate}.mp4`;
     }
     
-    // Use absolute URL for rendering, relative for preview
+    // Use absolute URL for rendering, relative for preview (legacy)
     const videoUrl = `${baseUrl}/ugc/videos/${filename}`;
-    console.log('Using selectedTemplate to construct URL:', videoUrl);
+    console.log('Using selectedTemplate to construct legacy URL:', videoUrl);
     return videoUrl;
   }
   
-  // If selectedTemplate is already a full URL
-  if (selectedTemplate && (selectedTemplate.startsWith('http://') || selectedTemplate.startsWith('https://'))) {
-    console.log('Using selectedTemplate (full URL):', selectedTemplate);
-    return selectedTemplate;
-  }
-  
-  // If url is provided, clean it and use appropriate base
+  // If url is provided, clean it and use appropriate base (legacy)
   if (url) {
     let cleanUrl = url;
     if (cleanUrl.startsWith('/ugc/videos/')) {
-      // Already a frontend path, convert to absolute for rendering
       const absoluteUrl = `${baseUrl}${cleanUrl}`;
-      console.log('Converting frontend path to absolute:', absoluteUrl);
+      console.log('Converting legacy frontend path to absolute:', absoluteUrl);
       return absoluteUrl;
     } else if (cleanUrl.startsWith('ugc/videos/')) {
       cleanUrl = `/${cleanUrl}`;
@@ -79,29 +77,13 @@ const transformVideoUrl = (url?: string, selectedTemplate?: string): string => {
     }
     
     const finalUrl = `${baseUrl}${cleanUrl}`;
-    console.log('Constructed URL from path:', finalUrl);
+    console.log('Constructed legacy URL from path:', finalUrl);
     return finalUrl;
   }
   
-  // Fallback - try to use selectedTemplate as filename
-  if (selectedTemplate) {
-    let filename = selectedTemplate;
-    
-    if (selectedTemplate.startsWith('template')) {
-      const templateNumber = selectedTemplate.replace('template', '');
-      filename = `${templateNumber}.mp4`;
-    } else if (!selectedTemplate.includes('.')) {
-      filename = `${selectedTemplate}.mp4`;
-    }
-    
-    const fallbackUrl = `${baseUrl}/ugc/videos/${filename}`;
-    console.log('Using selectedTemplate as fallback URL:', fallbackUrl);
-    return fallbackUrl;
-  }
-  
-  // Final fallback - use video 1.mp4
+  // Final fallback - use video 1.mp4 (legacy)
   const defaultUrl = `${baseUrl}/ugc/videos/1.mp4`;
-  console.log('Using default fallback URL:', defaultUrl);
+  console.log('Using default legacy fallback URL:', defaultUrl);
   return defaultUrl;
 };
 
@@ -121,7 +103,7 @@ export const VideoComposition: React.FC<VideoCompositionProps> = ({
   const frame = useCurrentFrame();
   const [videoError, setVideoError] = useState<string | null>(null);
 
-  // Transform the video URL with better logic
+  // Transform the video URL with R2 support
   const transformedTemplateUrl = transformVideoUrl(templateUrl, selectedTemplate);
 
   console.log('VideoComposition render with:', {
@@ -216,13 +198,13 @@ export const VideoComposition: React.FC<VideoCompositionProps> = ({
               <p>• Selected Template: {selectedTemplate}</p>
               <p>• Template URL: {templateUrl || 'Not provided'}</p>
               <p>• Transformed URL: {transformedTemplateUrl}</p>
-              <p>• Expected file location: public/ugc/videos/</p>
+              <p>• URL Type: {transformedTemplateUrl.startsWith('https://') ? 'R2 Cloud URL' : 'Legacy Local URL'}</p>
               <br />
               <p><strong>Common fixes:</strong></p>
-              <p>1. Check if the video file exists</p>
-              <p>2. Verify server is serving static files from /ugc path</p>
+              <p>1. Check if the video file exists in R2 bucket</p>
+              <p>2. Verify R2 bucket CORS settings allow your domain</p>
               <p>3. Test URL directly in browser: <br/><code>{transformedTemplateUrl}</code></p>
-              <p>4. Check server CORS settings</p>
+              <p>4. Check R2 public access permissions</p>
             </div>
           </div>
         </div>

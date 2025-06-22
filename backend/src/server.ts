@@ -2,12 +2,31 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
+import { S3Client, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { bundle } from '@remotion/bundler';
 import type { WebpackConfiguration } from '@remotion/bundler';
 import { renderMedia, selectComposition } from '@remotion/renderer';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// R2 Client Initialization
+const r2 = new S3Client({
+  region: 'auto',
+  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+  },
+  requestChecksumCalculation: "WHEN_REQUIRED", responseChecksumValidation: "WHEN_REQUIRED",
+});
+
+const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME;
+const R2_PUBLIC_URL_BASE = process.env.R2_PUBLIC_URL_BASE;
 
 // Middleware
 app.use(cors({
@@ -22,13 +41,10 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '50mb' }));
 app.use('/renders', express.static(path.join(__dirname, '../renders')));
-app.use(express.static(path.resolve(__dirname, '../../public')));
-app.use('/ugc/videos', (req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-  next();
-}, express.static(path.resolve(__dirname, '../../public/ugc/videos')));
+
+// Remove old static routes - no longer serving videos locally
+// app.use(express.static(path.resolve(__dirname, '../../public')));
+// app.use('/ugc/videos', express.static(path.resolve(__dirname, '../../public/ugc/videos')));
 
 // Types
 interface RenderRequest {
@@ -80,36 +96,45 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Video rendering server is running' });
 });
 
-// Get available videos endpoint
-app.get('/videos', (req: any, res: any) => {
+// Get available videos endpoint - Updated to fetch from R2
+app.get('/videos', async (req: any, res: any) => {
   // Add explicit CORS headers
   res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
   res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-  
   try {
-    const videosDir = path.resolve(__dirname, '../../public/ugc/videos');
-    
-    if (!fs.existsSync(videosDir)) {
-      return res.status(404).json({
-        success: false,
-        error: 'Videos directory not found'
+    if (!R2_BUCKET_NAME || !R2_PUBLIC_URL_BASE) {
+      return res.status(500).json({ 
+        success: false, 
+        error: 'R2 bucket configuration missing. Please check your environment variables.' 
       });
     }
 
-    const files = fs.readdirSync(videosDir);
-    const videoFiles = files
-      .filter(file => file.toLowerCase().endsWith('.mp4'))
-      .map(file => {
-        const filePath = path.join(videosDir, file);
-        const stats = fs.statSync(filePath);
+    const command = new ListObjectsV2Command({
+      Bucket: R2_BUCKET_NAME,
+      Prefix: 'videos/', // Assuming your videos are in a 'videos/' subfolder
+    });
+    
+    const data = await r2.send(command);
+    
+    if (!data.Contents) {
+      return res.json({ success: true, videos: [], count: 0 });
+    }
+
+    const videoFiles = data.Contents
+      .filter(obj => obj.Key && obj.Key.toLowerCase().endsWith('.mp4'))
+      .map(obj => {
+        const filename = path.basename(obj.Key!);
+        const videoId = filename.replace('.mp4', '');
+        const thumbnailKey = `images/${videoId}.jpg`; // Assuming thumbnail filename matches video ID + .jpg
         
         return {
-          id: file.replace('.mp4', ''),
-          name: file,
-          url: `/ugc/videos/${file}`,
-          size: stats.size,
-          filename: file
+          id: videoId,
+          name: filename,
+          url: `${R2_PUBLIC_URL_BASE}/${obj.Key}`, // Full public R2 URL for video
+          thumbnailUrl: `${R2_PUBLIC_URL_BASE}/${thumbnailKey}`, // Full public R2 URL for thumbnail
+          size: obj.Size || 0,
+          filename: filename
         };
       })
       .sort((a, b) => {
@@ -124,16 +149,17 @@ app.get('/videos', (req: any, res: any) => {
         return a.name.localeCompare(b.name);
       });
 
+    console.log(`Found ${videoFiles.length} videos in R2 bucket`);
     res.json({
       success: true,
       videos: videoFiles,
       count: videoFiles.length
     });
   } catch (error) {
-    console.error('Error fetching videos:', error);
+    console.error('Error fetching videos from R2:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch videos'
+      error: 'Failed to fetch videos from cloud storage'
     });
   }
 });
@@ -173,6 +199,7 @@ app.post('/render', async (req: any, res: any) => {
     (async () => {
       try {
         console.log('Starting rendering process for:', renderId);
+        console.log('Template URL:', template.url);
 
         // Update progress - Bundle creation
         await storeRenderInfo(renderId, {
@@ -209,7 +236,7 @@ app.post('/render', async (req: any, res: any) => {
           id: 'VideoComposition',
           inputProps: {
             ...videoParams,
-            templateUrl: template.url,
+            templateUrl: template.url, // This will now be the R2 URL
           },
         });
 
@@ -245,7 +272,7 @@ app.post('/render', async (req: any, res: any) => {
           outputLocation: outputPath,
           inputProps: {
             ...videoParams,
-            templateUrl: template.url,
+            templateUrl: template.url, // R2 URL for Remotion rendering
           },
           onProgress: ({ renderedFrames, encodedFrames }) => {
             const totalFrames = composition.durationInFrames;
@@ -412,6 +439,8 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 app.listen(PORT, () => {
   console.log(`Video rendering server running on port ${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/health`);
+  console.log(`R2 Bucket: ${R2_BUCKET_NAME}`);
+  console.log(`R2 Public URL: ${R2_PUBLIC_URL_BASE}`);
 });
 
 export default app;

@@ -35,6 +35,7 @@ interface Video {
   id: string;
   name: string;
   url: string;
+  thumbnailUrl?: string; // Added for R2 thumbnails
   size: number;
   filename: string;
 }
@@ -79,7 +80,7 @@ export default function CreatePage() {
     name: `Video ${selectedVideo.id}`,
     url: selectedVideo.url,
     duration: actualVideoDuration,
-    thumbnail: `/thumbnails/${selectedVideo.id}.jpg`
+    thumbnail: selectedVideo.thumbnailUrl || `/thumbnails/${selectedVideo.id}.jpg` // Use R2 thumbnail or fallback
   } : null;
 
   // Handle when actual video duration is found

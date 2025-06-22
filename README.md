@@ -204,3 +204,245 @@ docker-compose build --no-cache
 - The application uses a bridge network for inter-service communication
 - Volumes are used to persist and share video files
 - Non-root users are used for enhanced security
+
+# OneStop UGC Creator
+
+An AI-powered UGC (User Generated Content) creator app that streamlines the process of making TikTok-style videos. Users can add text overlays to AI-generated videos and render them using Remotion.
+
+## Features
+
+- **AI Video Templates**: Pre-generated video templates stored in Cloudflare R2
+- **Text Overlays**: Add customizable text with various positions, fonts, and colors
+- **Music Integration**: Add background music to your videos
+- **Real-time Preview**: See your edits in real-time using Remotion Player
+- **High-Quality Rendering**: Export videos in 1080x1920 resolution at 30 FPS
+
+## Architecture
+
+The application uses a modern tech stack:
+- **Frontend**: Next.js 14 with TypeScript
+- **Backend**: Express.js server for video rendering
+- **Video Processing**: Remotion for video composition and rendering
+- **Storage**: Cloudflare R2 for video templates and thumbnails
+- **Database**: PostgreSQL with Drizzle ORM
+- **Authentication**: Better Auth
+
+## Setup Instructions
+
+### Prerequisites
+
+- Node.js 18+ and npm
+- Cloudflare account with R2 bucket
+- PostgreSQL database
+
+### 1. Clone and Install Dependencies
+
+```bash
+git clone <repository-url>
+cd cloudfare_onestopmarketing
+npm install
+cd backend && npm install && cd ..
+```
+
+### 2. Cloudflare R2 Setup
+
+#### Step 1: Create R2 Bucket
+1. Log into your Cloudflare Dashboard
+2. Navigate to R2 Object Storage
+3. Create a new bucket (e.g., `your-ugc-templates-bucket`)
+4. Note down your bucket name
+
+#### Step 2: Configure R2 API Tokens
+1. Go to "Manage R2 API Tokens"
+2. Create a new API token with:
+   - **Permissions**: Object Read & Write
+   - **Bucket**: Your created bucket
+   - **Account ID**: Your Cloudflare Account ID
+3. Save the Access Key ID and Secret Access Key
+
+#### Step 3: Set Up R2 Public Access (Optional but Recommended)
+1. In your R2 bucket settings, enable "Public Access"
+2. This will generate a public URL like: `https://pub-<bucket-id>.r2.dev`
+3. Alternatively, you can configure a custom domain
+
+#### Step 4: Configure CORS Policy
+In your R2 bucket settings > CORS policy, add:
+
+```json
+[
+  {
+    "AllowedOrigins": [
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "https://your-frontend-domain.com"
+    ],
+    "AllowedMethods": ["GET", "HEAD"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": [],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+#### Step 5: Upload Your Content
+Upload your video templates and thumbnails to R2 with this structure:
+```
+your-bucket/
+├── videos/
+│   ├── 1.mp4
+│   ├── 2.mp4
+│   └── ...
+└── thumbnails/
+    ├── 1.jpg
+    ├── 2.jpg
+    └── ...
+```
+
+### 3. Environment Configuration
+
+Create a `.env` file in the root directory:
+
+```env
+# Database
+DATABASE_URL=postgresql://username:password@localhost:5432/database_name
+
+# Authentication
+BETTER_AUTH_SECRET=your-secret-key-here
+BETTER_AUTH_URL=http://localhost:3000
+
+# Cloudflare R2 Configuration
+R2_ACCOUNT_ID=your-cloudflare-account-id
+R2_ACCESS_KEY_ID=your-r2-access-key-id
+R2_SECRET_ACCESS_KEY=your-r2-secret-access-key
+R2_BUCKET_NAME=your-ugc-templates-bucket
+R2_ENDPOINT=https://your-cloudflare-account-id.r2.cloudflarestorage.com
+R2_PUBLIC_URL_BASE=https://pub-your-bucket-id.r2.dev
+
+# Payment Processing (Optional)
+STRIPE_SECRET_KEY=your-stripe-secret-key
+STRIPE_WEBHOOK_SECRET=your-stripe-webhook-secret
+NEXT_PUBLIC_STRIPE_PUBLIC_KEY=your-stripe-public-key
+NEXT_PUBLIC_STRIPE_PRICE_ID=your-stripe-price-id
+
+# Analytics (Optional)
+NEXT_PUBLIC_POSTHOG_KEY=your-posthog-key
+NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
+
+# Error Monitoring (Optional)
+NEXT_PUBLIC_SENTRY_DSN=your-sentry-dsn
+SENTRY_AUTH_TOKEN=your-sentry-auth-token
+SENTRY_ORG=your-org-slug
+SENTRY_PROJECT=your-project-name
+
+# Frontend URL
+FRONTEND_URL=http://localhost:3000
+```
+
+### 4. Database Setup
+
+```bash
+# Generate database schema
+npm run db:generate
+
+# Push schema to database
+npm run db:push
+
+# Optional: Seed database
+npm run db:seed
+```
+
+### 5. Start Development Servers
+
+```bash
+# Terminal 1: Start backend server
+cd backend
+npm run dev
+
+# Terminal 2: Start frontend server
+npm run dev
+```
+
+The application will be available at:
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:3001
+
+## R2 Integration Details
+
+### How It Works
+
+1. **Video Fetching**: The backend fetches video lists from R2 using the AWS SDK
+2. **Frontend Display**: Thumbnails and video previews are loaded directly from R2 URLs
+3. **Rendering**: Remotion processes videos using the R2 URLs for final rendering
+4. **CORS**: Properly configured CORS allows browsers to access R2 content
+
+### Folder Structure in R2
+
+```
+your-bucket/
+├── videos/           # Video templates (.mp4 files)
+│   ├── 1.mp4
+│   ├── 2.mp4
+│   ├── 3.mp4
+│   └── ...
+├── thumbnails/       # Video thumbnails (.jpg files)
+│   ├── 1.jpg        # Thumbnail for 1.mp4
+│   ├── 2.jpg        # Thumbnail for 2.mp4
+│   ├── 3.jpg        # Thumbnail for 3.mp4
+│   └── ...
+└── renders/          # Optional: Store rendered videos
+    └── ...
+```
+
+### Troubleshooting R2 Issues
+
+1. **Videos not loading**: Check CORS policy and public access settings
+2. **Thumbnails not showing**: Verify thumbnail files exist with correct naming
+3. **Rendering fails**: Ensure R2 URLs are publicly accessible
+4. **Connection errors**: Verify API keys and endpoint URLs
+
+## Usage
+
+1. **Select Template**: Choose a video template from the gallery
+2. **Add Text**: Customize text content, position, and styling
+3. **Add Music**: Optionally add background music
+4. **Preview**: See real-time preview of your video
+5. **Render**: Generate final video file
+6. **Download**: Download your created video
+
+## Development
+
+### Project Structure
+
+```
+├── src/
+│   ├── app/                 # Next.js app directory
+│   │   ├── create/         # Main video creation page
+│   │   └── ...
+│   ├── components/         # Reusable components
+│   │   ├── remotion/      # Remotion-specific components
+│   │   └── ui/            # UI components
+│   └── utils/             # Utility functions
+├── backend/               # Express.js backend
+│   └── src/
+│       └── server.ts     # Main server file
+└── ...
+```
+
+### Key Components
+
+- `VideoComposition`: Main Remotion component for video rendering
+- `VideoSelector`: Component for selecting video templates
+- `TextEditor`: Text overlay customization
+- `MusicSelector`: Background music selection
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## License
+
+[Your License Here]

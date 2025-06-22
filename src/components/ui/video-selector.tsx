@@ -7,6 +7,7 @@ interface Video {
   id: string;
   name: string;
   url: string;
+  thumbnailUrl?: string; // Added for R2 thumbnails
   size: number;
   filename: string;
 }
@@ -123,11 +124,22 @@ export const VideoSelector: React.FC<VideoSelectorProps> = ({
                   muted
                   onError={() => setPreviewVideo(null)}
                 />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-                  <Play className="w-8 h-8 text-gray-400" />
-                </div>
-              )}
+              ) : video.thumbnailUrl ? (
+                <img
+                  src={video.thumbnailUrl}
+                  alt={`Thumbnail for Video ${video.id}`}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    // Fallback to play icon if thumbnail fails to load
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                  }}
+                />
+              ) : null}
+              {/* Fallback Play Icon - shown if no thumbnail or thumbnail fails to load */}
+              <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 ${video.thumbnailUrl ? 'hidden' : ''}`}>
+                <Play className="w-8 h-8 text-gray-400" />
+              </div>
               
               {/* Hover overlay */}
               <div 

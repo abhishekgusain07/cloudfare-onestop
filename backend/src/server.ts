@@ -16,7 +16,9 @@ app.use(cors({
     'http://localhost:3001',  // Backend server
     'http://localhost:3002',  // Potential Remotion webpack server
   ],
-  methods: ['GET', 'HEAD', 'OPTIONS'],
+  methods: ['GET', 'POST', 'HEAD', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept'],
+  credentials: true
 }));
 app.use(express.json({ limit: '50mb' }));
 app.use('/renders', express.static(path.join(__dirname, '../renders')));
@@ -78,6 +80,64 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Video rendering server is running' });
 });
 
+// Get available videos endpoint
+app.get('/videos', (req: any, res: any) => {
+  // Add explicit CORS headers
+  res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  
+  try {
+    const videosDir = path.resolve(__dirname, '../../public/ugc/videos');
+    
+    if (!fs.existsSync(videosDir)) {
+      return res.status(404).json({
+        success: false,
+        error: 'Videos directory not found'
+      });
+    }
+
+    const files = fs.readdirSync(videosDir);
+    const videoFiles = files
+      .filter(file => file.toLowerCase().endsWith('.mp4'))
+      .map(file => {
+        const filePath = path.join(videosDir, file);
+        const stats = fs.statSync(filePath);
+        
+        return {
+          id: file.replace('.mp4', ''),
+          name: file,
+          url: `/ugc/videos/${file}`,
+          size: stats.size,
+          filename: file
+        };
+      })
+      .sort((a, b) => {
+        // Sort numerically if both are numbers, otherwise alphabetically
+        const aNum = parseInt(a.id);
+        const bNum = parseInt(b.id);
+        
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+          return aNum - bNum;
+        }
+        
+        return a.name.localeCompare(b.name);
+      });
+
+    res.json({
+      success: true,
+      videos: videoFiles,
+      count: videoFiles.length
+    });
+  } catch (error) {
+    console.error('Error fetching videos:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch videos'
+    });
+  }
+});
+
 // Start rendering endpoint
 app.post('/render', async (req: any, res: any) => {
   try {
@@ -90,7 +150,7 @@ app.post('/render', async (req: any, res: any) => {
         error: 'Missing video parameters or template'
       });
     }
-
+    
     // Generate unique render ID
     const renderId = `render_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 

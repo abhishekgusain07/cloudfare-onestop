@@ -18,7 +18,7 @@ export const RemotionRoot: React.FC<RemotionRootProps> = ({
   disableCaptions = false,
   audioDuration = 0
 }) => {
-  // Calculate duration based on captions, audio duration, or use default of 150
+  // Calculate duration based on captions, audio duration, or use default
   const calculateDuration = () => {
     // If captions are disabled, use audio duration (converted from seconds to frames)
     if (disableCaptions && audioDuration) {
@@ -26,9 +26,9 @@ export const RemotionRoot: React.FC<RemotionRootProps> = ({
       return Math.ceil((audioDuration + 1) * 30); // Assuming 30fps
     }
     
-    // If captions are enabled but empty, use default
+    // If captions are enabled but empty, use default duration
     if (!captions || captions.length === 0) {
-      return 150; // Default value when no captions
+      return 150; // Default 5 seconds (150 frames at 30fps) - will be overridden by actual video duration
     }
     
     // Use captions for duration calculation
@@ -47,7 +47,7 @@ export const RemotionRoot: React.FC<RemotionRootProps> = ({
       width={1080}
       height={1920}
       defaultProps={{
-        selectedTemplate: '1.mp4', // Just the filename, not full URL
+        selectedTemplate: '', // No default template - will be set dynamically
         text: 'Your AI-Generated Video',
         textPosition: 'bottom',
         textAlign: 'center',
@@ -55,7 +55,7 @@ export const RemotionRoot: React.FC<RemotionRootProps> = ({
         textColor: '#FFFFFF',
         musicVolume: 0.5,
         musicUrl: undefined,
-        templateUrl: undefined, // Let the component handle URL construction
+        templateUrl: undefined, // Will be set dynamically when video is selected
       }}
     />
   );

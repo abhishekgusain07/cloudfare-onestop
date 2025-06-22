@@ -6,6 +6,7 @@ import { VideoComposition } from '@/components/remotion/videoComposition';
 import { TextEditor } from '@/components/remotion/texteditor';
 import { PositionSelector } from '@/components/remotion/positionselector';
 import { MusicSelector } from '@/components/remotion/musicselector';
+import { VideoSelector } from '@/components/ui/video-selector';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -29,10 +30,19 @@ export interface VideoParams {
   musicVolume: number;
 }
 
+// Video interface from the selector
+interface Video {
+  id: string;
+  name: string;
+  url: string;
+  size: number;
+  filename: string;
+}
+
 export default function CreatePage() {
   const router = useRouter();
   const [videoParams, setVideoParams] = useState<VideoParams>({
-    selectedTemplate: '1.mp4', // Hardcoded to use 1.mp4
+    selectedTemplate: '', // Will be set when video is selected
     text: 'Your brand message here...',
     textPosition: 'center',
     textAlign: 'center',
@@ -41,6 +51,10 @@ export default function CreatePage() {
     textOpacity: 1,
     musicVolume: 0.5,
   });
+  
+  // Selected video state
+  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
+  
   const [isRendering, setIsRendering] = useState(false);
   const [renderProgress, setRenderProgress] = useState(0);
   const [renderId, setRenderId] = useState<string | null>(null);
@@ -49,14 +63,24 @@ export default function CreatePage() {
   const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking');
   const [actualVideoDuration, setActualVideoDuration] = useState<number>(30); // Default to 30 seconds
 
-  // Hardcoded template data for the single video
-  const template = {
-    id: '1.mp4',
-    name: 'UGC Video 1',
-    url: '/ugc/videos/1.mp4',
-    duration: actualVideoDuration, // Use actual video duration
-    thumbnail: '/thumbnails/1.jpg'
+  // Handle video selection from VideoSelector
+  const handleVideoSelect = (video: Video) => {
+    setSelectedVideo(video);
+    setVideoParams(prev => ({ 
+      ...prev, 
+      selectedTemplate: video.filename 
+    }));
+    console.log('Selected video:', video);
   };
+
+  // Create template object from selected video
+  const template = selectedVideo ? {
+    id: selectedVideo.id,
+    name: `Video ${selectedVideo.id}`,
+    url: selectedVideo.url,
+    duration: actualVideoDuration,
+    thumbnail: `/thumbnails/${selectedVideo.id}.jpg`
+  } : null;
 
   // Handle when actual video duration is found
   const handleDurationFound = (duration: number) => {
@@ -82,13 +106,19 @@ export default function CreatePage() {
       }
     };
 
-    // Test video accessibility
+    checkServerStatus();
+  }, []);
+
+  // Test video accessibility when video is selected
+  useEffect(() => {
+    if (!selectedVideo) return;
+    
     const testVideoAccess = async () => {
       try {
-        console.log('Testing video accessibility:', template.url);
-        const response = await fetch(template.url, { method: 'HEAD' });
+        console.log('Testing video accessibility:', selectedVideo.url);
+        const response = await fetch(selectedVideo.url, { method: 'HEAD' });
         console.log('Video test result:', { 
-          url: template.url, 
+          url: selectedVideo.url, 
           status: response.status, 
           statusText: response.statusText,
           contentType: response.headers.get('content-type')
@@ -96,17 +126,16 @@ export default function CreatePage() {
         
         if (!response.ok) {
           console.error('Video file not accessible:', response.status, response.statusText);
-          toast.error(`Video file not accessible: ${template.url} (${response.status})`);
+          toast.error(`Video file not accessible: ${selectedVideo.url} (${response.status})`);
         }
       } catch (error) {
         console.error('Video accessibility test failed:', error);
-        toast.error(`Video file test failed: ${template.url}`);
+        toast.error(`Video file test failed: ${selectedVideo.url}`);
       }
     };
 
-    checkServerStatus();
     testVideoAccess();
-  }, []);
+  }, [selectedVideo]);
 
   // Handle text change
   const handleTextChange = (text: string) => {
@@ -152,6 +181,11 @@ export default function CreatePage() {
   const handleRenderVideo = async () => {
     if (serverStatus !== 'online') {
       toast.error('Video rendering server is not available. Please check if it\'s running.');
+      return;
+    }
+    
+    if (!template) {
+      toast.error('Please select a video template first.');
       return;
     }
     
@@ -242,26 +276,26 @@ export default function CreatePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      {/* Header */}
+        {/* Header */}
       <div className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 AI UGC Studio
-              </h1>
+          </h1>
               <p className="text-slate-600 text-sm">Create viral content in minutes</p>
             </div>
             
             {/* Server Status */}
             <div className="flex items-center gap-3">
-              {serverStatus === 'online' && (
+          {serverStatus === 'online' && (
                 <Badge variant="outline" className="border-green-200 text-green-700 bg-green-50">
                   <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
                   Server Online
                 </Badge>
-              )}
-              {serverStatus === 'offline' && (
+          )}
+          {serverStatus === 'offline' && (
                 <Badge variant="outline" className="border-red-200 text-red-700 bg-red-50">
                   <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
                   Server Offline
@@ -293,44 +327,58 @@ export default function CreatePage() {
                       {Math.round(actualVideoDuration)}s
                     </Badge>
                     <Badge variant="secondary" className="text-xs">
-                      {template.name}
+                        {template?.name}
                     </Badge>
-                  </div>
+                      </div>
                 </div>
               </CardHeader>
-              <CardContent className="flex-1 flex items-center justify-center p-6">
+                            <CardContent className="flex-1 flex items-center justify-center p-6">
                 <div className="w-full max-w-sm mx-auto">
                   <div className="aspect-[9/16] bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl overflow-hidden shadow-2xl ring-1 ring-slate-200">
-                    <Player
-                      component={VideoComposition}
-                      inputProps={{
-                        selectedTemplate: videoParams.selectedTemplate,
-                        text: videoParams.text,
-                        textPosition: videoParams.textPosition,
-                        textAlign: videoParams.textAlign,
-                        fontSize: videoParams.fontSize,
-                        textColor: videoParams.textColor,
-                        textOpacity: videoParams.textOpacity,
-                        musicUrl: videoParams.musicUrl,
-                        musicVolume: videoParams.musicVolume,
-                        templateUrl: template.url, // Use the hardcoded template URL
-                        onDurationFound: handleDurationFound, // Callback for duration
-                      }}
-                      durationInFrames={Math.round(template.duration * 30)} // duration * 30 fps, rounded
-                      compositionWidth={1080}
-                      compositionHeight={1920}
-                      fps={30}
-                      className="w-full h-full"
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                      }}
-                      controls={false}
-                      loop={true}
-                      autoPlay={true}
-                      showVolumeControls={false}
-                      allowFullscreen={false}
-                    />
+                    {selectedVideo && template ? (
+                      <Player
+                        component={VideoComposition}
+                        inputProps={{
+                          selectedTemplate: videoParams.selectedTemplate,
+                          text: videoParams.text,
+                          textPosition: videoParams.textPosition,
+                          textAlign: videoParams.textAlign,
+                          fontSize: videoParams.fontSize,
+                          textColor: videoParams.textColor,
+                          textOpacity: videoParams.textOpacity,
+                          musicUrl: videoParams.musicUrl,
+                          musicVolume: videoParams.musicVolume,
+                          templateUrl: template.url,
+                          onDurationFound: handleDurationFound,
+                        }}
+                        durationInFrames={Math.round((template.duration || 30) * 30)}
+                        compositionWidth={1080}
+                        compositionHeight={1920}
+                        fps={30}
+                        className="w-full h-full"
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                        }}
+                        controls={false}
+                        loop={true}
+                        autoPlay={true}
+                        showVolumeControls={false}
+                        allowFullscreen={false}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <div className="text-center text-white p-6">
+                          <div className="w-16 h-16 mx-auto mb-4 bg-white/20 rounded-full flex items-center justify-center">
+                            <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M8 5v14l11-7z"/>
+                            </svg>
+                          </div>
+                          <h3 className="text-lg font-semibold mb-2">Select a Video</h3>
+                          <p className="text-sm text-white/70">Choose a video template from the Video tab to start creating</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -345,62 +393,75 @@ export default function CreatePage() {
                 <p className="text-sm text-slate-600">Make it your own</p>
               </CardHeader>
               <CardContent className="flex-1 overflow-hidden">
-                <Tabs defaultValue="text" className="h-full flex flex-col">
-                  <TabsList className="grid w-full grid-cols-4 mb-4">
-                    <TabsTrigger value="text" className="text-xs">Text</TabsTrigger>
-                    <TabsTrigger value="position" className="text-xs">Position</TabsTrigger>
-                    <TabsTrigger value="music" className="text-xs">Music</TabsTrigger>
-                    <TabsTrigger value="render" className="text-xs">Render</TabsTrigger>
+                <Tabs defaultValue="video" className="h-full flex flex-col">
+                  <TabsList className="grid w-full grid-cols-5 mb-4 h-10 p-1 bg-slate-100 rounded-lg">
+                    <TabsTrigger value="video" className="text-xs px-3 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">Video</TabsTrigger>
+                    <TabsTrigger value="text" className="text-xs px-3 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">Text</TabsTrigger>
+                    <TabsTrigger value="position" className="text-xs px-3 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">Position</TabsTrigger>
+                    <TabsTrigger value="music" className="text-xs px-3 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">Music</TabsTrigger>
+                    <TabsTrigger value="render" className="text-xs px-3 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">Render</TabsTrigger>
                   </TabsList>
 
                   <div className="flex-1 overflow-hidden">
+                    <TabsContent value="video" className="h-full m-0">
+                      <ScrollArea className="h-full">
+                        <div className="space-y-6 pr-2">
+                          <VideoSelector
+                            selectedVideo={selectedVideo?.filename || null}
+                            onVideoSelect={handleVideoSelect}
+                            className="border-0 p-0"
+                          />
+                        </div>
+                      </ScrollArea>
+                    </TabsContent>
+
                     <TabsContent value="text" className="h-full m-0">
                       <ScrollArea className="h-full">
                         <div className="space-y-6 pr-2">
-                          <TextEditor 
-                            text={videoParams.text}
-                            fontSize={videoParams.fontSize}
-                            textColor={videoParams.textColor}
-                            textOpacity={videoParams.textOpacity}
-                            onTextChange={handleTextChange}
-                            onFontSizeChange={handleFontSizeChange}
-                            onColorChange={handleColorChange}
-                            onOpacityChange={handleOpacityChange}
-                          />
-                        </div>
+              <TextEditor 
+                text={videoParams.text}
+                fontSize={videoParams.fontSize}
+                textColor={videoParams.textColor}
+                textOpacity={videoParams.textOpacity}
+                onTextChange={handleTextChange}
+                onFontSizeChange={handleFontSizeChange}
+                onColorChange={handleColorChange}
+                onOpacityChange={handleOpacityChange}
+              />
+            </div>
                       </ScrollArea>
                     </TabsContent>
 
                     <TabsContent value="position" className="h-full m-0">
                       <ScrollArea className="h-full">
                         <div className="space-y-6 pr-2">
-                          <PositionSelector
-                            position={videoParams.textPosition}
-                            align={videoParams.textAlign}
+              <PositionSelector
+                position={videoParams.textPosition}
+                align={videoParams.textAlign}
                             onPositionChange={handlePositionChange}
-                            onAlignChange={handleAlignmentChange}
-                          />
-                        </div>
+                onAlignChange={handleAlignmentChange}
+              />
+            </div>
                       </ScrollArea>
                     </TabsContent>
 
                     <TabsContent value="music" className="h-full m-0">
                       <ScrollArea className="h-full">
                         <div className="space-y-6 pr-2">
-                          <MusicSelector 
-                            selectedMusic={videoParams.musicUrl}
-                            volume={videoParams.musicVolume}
-                            onMusicChange={handleMusicSelect}
-                            onVolumeChange={handleVolumeChange}
-                          />
-                        </div>
+              <MusicSelector 
+                selectedMusic={videoParams.musicUrl}
+                volume={videoParams.musicVolume}
+                onMusicChange={handleMusicSelect}
+                onVolumeChange={handleVolumeChange}
+              />
+            </div>
                       </ScrollArea>
                     </TabsContent>
 
                     <TabsContent value="render" className="h-full m-0">
                       <ScrollArea className="h-full">
                         <div className="space-y-6 pr-2">
-                          {renderStatus === 'rendering' ? (
+              {renderStatus === 'rendering' ? (
                             <div className="space-y-6">
                               <div className="text-center">
                                 <div className="w-20 h-20 mx-auto mb-4 relative">
@@ -408,14 +469,14 @@ export default function CreatePage() {
                                   <div className="absolute inset-0 rounded-full border-4 border-blue-500 border-t-transparent animate-spin"></div>
                                   <div className="absolute inset-0 flex items-center justify-center">
                                     <span className="text-sm font-medium text-blue-600">{renderProgress}%</span>
-                                  </div>
+                  </div>
                                 </div>
                                 <h3 className="text-lg font-semibold text-slate-800 mb-2">Rendering Your Video</h3>
                                 <p className="text-slate-600 text-sm">This usually takes 2-5 minutes</p>
                               </div>
                               <Progress value={renderProgress} className="w-full h-2" />
-                            </div>
-                          ) : renderStatus === 'completed' ? (
+                </div>
+              ) : renderStatus === 'completed' ? (
                             <div className="text-center space-y-6">
                               <div className="w-20 h-20 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-4">
                                 <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -425,26 +486,26 @@ export default function CreatePage() {
                               <div>
                                 <h3 className="text-lg font-semibold text-slate-800 mb-2">Video Ready!</h3>
                                 <p className="text-slate-600 text-sm mb-6">Your viral content is ready to download</p>
-                              </div>
+                  </div>
                               <div className="space-y-3">
-                                <Button 
-                                  onClick={handleDownloadVideo}
-                                  disabled={!downloadUrl}
+                    <Button 
+                      onClick={handleDownloadVideo}
+                      disabled={!downloadUrl}
                                   className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                                   size="lg"
-                                >
-                                  Download Video
-                                </Button>
-                                <Button 
-                                  variant="outline" 
-                                  onClick={handleResetRender}
+                    >
+                      Download Video
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={handleResetRender}
                                   className="w-full"
-                                >
+                    >
                                   Create Another
-                                </Button>
-                              </div>
-                            </div>
-                          ) : renderStatus === 'failed' ? (
+                    </Button>
+                  </div>
+                </div>
+              ) : renderStatus === 'failed' ? (
                             <div className="text-center space-y-6">
                               <div className="w-20 h-20 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4">
                                 <svg className="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -454,26 +515,26 @@ export default function CreatePage() {
                               <div>
                                 <h3 className="text-lg font-semibold text-slate-800 mb-2">Render Failed</h3>
                                 <p className="text-slate-600 text-sm mb-6">Something went wrong. Please try again.</p>
-                              </div>
+                  </div>
                               <div className="space-y-3">
-                                <Button 
-                                  onClick={handleRenderVideo}
+                    <Button 
+                      onClick={handleRenderVideo}
                                   disabled={serverStatus !== 'online'}
                                   className="w-full"
                                   variant="outline"
-                                >
-                                  Try Again
-                                </Button>
-                                <Button 
+                    >
+                      Try Again
+                    </Button>
+                    <Button 
                                   variant="ghost" 
-                                  onClick={handleResetRender}
+                      onClick={handleResetRender}
                                   className="w-full"
-                                >
-                                  Reset
-                                </Button>
-                              </div>
-                            </div>
-                          ) : (
+                    >
+                      Reset
+                    </Button>
+                  </div>
+                </div>
+              ) : (
                             <div className="space-y-6">
                               <div className="text-center">
                                 <div className="w-20 h-20 mx-auto bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mb-4">
@@ -500,17 +561,17 @@ export default function CreatePage() {
                                 </div>
                               </div>
                               
-                              <Button 
-                                onClick={handleRenderVideo} 
+                  <Button 
+                    onClick={handleRenderVideo} 
                                 disabled={serverStatus !== 'online'}
                                 className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                                size="lg"
-                              >
+                    size="lg"
+                  >
                                 {serverStatus !== 'online' ? 'Server Offline' : 'Render Video'}
-                              </Button>
-                            </div>
-                          )}
-                        </div>
+                  </Button>
+                </div>
+              )}
+            </div>
                       </ScrollArea>
                     </TabsContent>
                   </div>

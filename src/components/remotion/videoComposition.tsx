@@ -113,8 +113,8 @@ export const VideoComposition: React.FC<VideoCompositionProps> = ({
     }
   }, [durationInFrames, onDurationFound]);
 
-  // Text animation - fade in over first 30 frames
-  const textOpacity = interpolate(frame, [0, 30], [0, 1], {
+  // Simplified text animation - fade in over first 15 frames for better performance
+  const textOpacity = interpolate(frame, [0, 15], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
@@ -131,6 +131,10 @@ export const VideoComposition: React.FC<VideoCompositionProps> = ({
       width: '80%',
       padding: '0 20px',
       wordWrap: 'break-word',
+      // Performance optimizations for text rendering
+      willChange: 'opacity, transform', // Hint for GPU acceleration
+      backfaceVisibility: 'hidden', // Reduce rendering artifacts
+      WebkitFontSmoothing: 'antialiased', // Better text rendering
     };
 
     switch (textPosition) {
@@ -218,8 +222,8 @@ export const VideoComposition: React.FC<VideoCompositionProps> = ({
           console.error('Remotion Video component error:', error);
           setVideoError(`Remotion Video component error: ${error.message || error}`);
         }}
-        // Performance optimizations
-        preload="metadata" // Preload video metadata for faster start
+        // Performance optimizations for smooth playback
+        preload="auto" // Changed from "metadata" to "auto" for faster playback
         crossOrigin="anonymous" // Enable CORS for R2 videos
         playsInline={true} // Better mobile performance
       />
@@ -239,13 +243,14 @@ export const VideoComposition: React.FC<VideoCompositionProps> = ({
         </div>
       </AbsoluteFill>
 
-      {/* Optional: Add subtle vignette effect */}
+      {/* Optional: Add subtle vignette effect - simplified for better performance */}
       <AbsoluteFill>
         <div
           style={{
-            background: 'radial-gradient(circle, transparent 40%, rgba(0,0,0,0.3) 100%)',
+            background: 'radial-gradient(circle, transparent 50%, rgba(0,0,0,0.2) 100%)',
             width: '100%',
             height: '100%',
+            willChange: 'transform', // Hint for GPU acceleration
           }}
         />
       </AbsoluteFill>

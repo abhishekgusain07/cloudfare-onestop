@@ -27,6 +27,9 @@ export const VideoSelector: React.FC<VideoSelectorProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [previewVideo, setPreviewVideo] = useState<string | null>(null);
+  // Add thumbnail loading and error state management
+  const [thumbnailErrors, setThumbnailErrors] = useState<Set<string>>(new Set());
+  const [thumbnailLoading, setThumbnailLoading] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchVideos();
@@ -39,8 +42,20 @@ export const VideoSelector: React.FC<VideoSelectorProps> = ({
       const data = await response.json();
       
       if (data.success) {
-        // Reduced logging for performance
+        // Enhanced logging to debug thumbnailUrl values
         console.log(`✅ Fetched ${data.videos.length} videos from R2`);
+        console.log('Sample video with thumbnail data:', data.videos[0]);
+        
+        // Debug: Log all thumbnailUrl values to check if they're being set correctly
+        const videosWithThumbnails = data.videos.filter((v: Video) => v.thumbnailUrl);
+        const videosWithoutThumbnails = data.videos.filter((v: Video) => !v.thumbnailUrl);
+        console.log(`📸 Videos with thumbnails: ${videosWithThumbnails.length}`);
+        console.log(`❌ Videos without thumbnails: ${videosWithoutThumbnails.length}`);
+        
+        if (videosWithThumbnails.length > 0) {
+          console.log('Sample thumbnail URL:', videosWithThumbnails[0].thumbnailUrl);
+        }
+        
         setVideos(data.videos);
         // Auto-select first video if none selected
         if (!selectedVideo && data.videos.length > 0) {
@@ -55,6 +70,31 @@ export const VideoSelector: React.FC<VideoSelectorProps> = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  // Simplified thumbnail error handling using React state
+  const handleThumbnailError = (videoId: string) => {
+    console.log('Thumbnail failed to load for video:', videoId);
+    setThumbnailErrors(prev => new Set([...prev, videoId]));
+    setThumbnailLoading(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(videoId);
+      return newSet;
+    });
+  };
+
+  const handleThumbnailLoad = (videoId: string) => {
+    console.log('Thumbnail loaded successfully for video:', videoId);
+    console.log('Thumbnail URL:', videos.find(v => v.id === videoId)?.thumbnailUrl);
+    setThumbnailLoading(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(videoId);
+      return newSet;
+    });
+  };
+
+  const handleThumbnailLoadStart = (videoId: string) => {
+    setThumbnailLoading(prev => new Set([...prev, videoId]));
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -126,29 +166,34 @@ export const VideoSelector: React.FC<VideoSelectorProps> = ({
                   muted
                   onError={() => setPreviewVideo(null)}
                 />
-              ) : video.thumbnailUrl ? (
-                <img
-                  src={video.thumbnailUrl}
-                  alt={`Thumbnail for Video ${video.id}`}
-                  className="w-full h-full object-cover"
-                  loading="lazy" // Lazy load thumbnails for better performance
-                  decoding="async" // Async image decoding
-                  onError={(e) => {
-                    console.log('Thumbnail failed to load:', video.thumbnailUrl);
-                    // Hide the broken image and show fallback
-                    const target = e.currentTarget as HTMLImageElement;
-                    target.style.display = 'none';
-                    const fallback = target.parentElement?.querySelector('.fallback-icon') as HTMLElement;
-                    if (fallback) {
-                      fallback.classList.remove('hidden');
-                    }
-                  }}
-                />
-              ) : null}
-              {/* Fallback Play Icon - shown if no thumbnail or thumbnail fails to load */}
-              <div className={`fallback-icon w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 ${video.thumbnailUrl ? 'hidden' : ''}`}>
-                <Play className="w-8 h-8 text-white" />
-              </div>
+              ) : (
+                // Simplified thumbnail rendering logic
+                <>
+                  {!thumbnailErrors.has(video.id) && video.thumbnailUrl ? (
+                    <img
+                      src={video.thumbnailUrl}
+                      alt={`Thumbnail for Video ${video.id}`}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      onLoadStart={() => handleThumbnailLoadStart(video.id)}
+                      onLoad={() => handleThumbnailLoad(video.id)}
+                      onError={() => handleThumbnailError(video.id)}
+                    />
+                  ) : (
+                    // Clean fallback UI
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
+                      <Play className="w-8 h-8 text-white" />
+                    </div>
+                  )}
+                  
+                  {/* Loading indicator for thumbnails */}
+                  {thumbnailLoading.has(video.id) && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-gray-200 bg-opacity-75">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
+                    </div>
+                  )}
+                </>
+              )}
               
               {/* Hover overlay */}
               <div 

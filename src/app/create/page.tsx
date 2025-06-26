@@ -354,8 +354,8 @@ export default function CreatePage() {
                           onDurationFound: handleDurationFound,
                         }}
                         durationInFrames={Math.round((template.duration || 30) * 30)}
-                        compositionWidth={1080}
-                        compositionHeight={1920}
+                        compositionWidth={540} // Reduced from 1080 for better preview performance
+                        compositionHeight={960} // Reduced from 1920 for better preview performance
                         fps={30}
                         className="w-full h-full"
                         style={{
@@ -367,6 +367,32 @@ export default function CreatePage() {
                         autoPlay={true}
                         showVolumeControls={false}
                         allowFullscreen={false}
+                        clickToPlay={false}
+                        spaceKeyToPlayOrPause={false}
+                        playbackRate={1}
+                        initialFrame={0}
+                        doubleClickToFullscreen={false}
+                        moveToBeginningWhenEnded={false}
+                        // Performance optimizations for smooth playback
+                        renderLoading={() => (
+                          <div className="w-full h-full flex items-center justify-center bg-slate-800">
+                            <div className="animate-pulse text-white">Loading...</div>
+                          </div>
+                        )}
+                        errorFallback={({ error }) => (
+                          <div className="w-full h-full flex items-center justify-center bg-red-900 text-white p-4">
+                            <div className="text-center">
+                              <div className="text-sm">Preview Error</div>
+                              <div className="text-xs opacity-75 mt-1">{error.message}</div>
+                            </div>
+                          </div>
+                        )}
+                        // Hardware acceleration and performance hints
+                        numberOfSharedAudioTags={1} // Reduce audio context overhead
+                        alwaysShowControls={false}
+                        showPosterWhenUnplayed={false}
+                        showPosterWhenPaused={false}
+                        showPosterWhenEnded={false}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">

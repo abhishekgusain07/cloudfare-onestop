@@ -80,7 +80,7 @@ export default function CreatePage() {
     name: `Video ${selectedVideo.id}`,
     url: selectedVideo.url,
     duration: actualVideoDuration,
-    thumbnail: selectedVideo.thumbnailUrl || `/thumbnails/${selectedVideo.id}.jpg` // Use R2 thumbnail or fallback
+    thumbnail: selectedVideo.thumbnailUrl || `/images/${selectedVideo.id}.png` // Use R2 thumbnail or fallback
   } : null;
 
   // Handle when actual video duration is found
@@ -110,33 +110,34 @@ export default function CreatePage() {
     checkServerStatus();
   }, []);
 
-  // Test video accessibility when video is selected
-  useEffect(() => {
-    if (!selectedVideo) return;
-    
-    const testVideoAccess = async () => {
-      try {
-        console.log('Testing video accessibility:', selectedVideo.url);
-        const response = await fetch(selectedVideo.url, { method: 'HEAD' });
-        console.log('Video test result:', { 
-          url: selectedVideo.url, 
-          status: response.status, 
-          statusText: response.statusText,
-          contentType: response.headers.get('content-type')
-        });
-        
-        if (!response.ok) {
-          console.error('Video file not accessible:', response.status, response.statusText);
-          toast.error(`Video file not accessible: ${selectedVideo.url} (${response.status})`);
-        }
-      } catch (error) {
-        console.error('Video accessibility test failed:', error);
-        toast.error(`Video file test failed: ${selectedVideo.url}`);
-      }
-    };
-
-    testVideoAccess();
-  }, [selectedVideo]);
+  // Test video accessibility when video is selected - DISABLED to prevent infinite loops
+  // TODO: Re-enable with proper throttling/debouncing
+  // useEffect(() => {
+  //   if (!selectedVideo) return;
+  //   
+  //   const testVideoAccess = async () => {
+  //     try {
+  //       console.log('Testing video accessibility:', selectedVideo.url);
+  //       const response = await fetch(selectedVideo.url, { method: 'HEAD' });
+  //       console.log('Video test result:', { 
+  //         url: selectedVideo.url, 
+  //         status: response.status, 
+  //         statusText: response.statusText,
+  //         contentType: response.headers.get('content-type')
+  //       });
+  //       
+  //       if (!response.ok) {
+  //         console.error('Video file not accessible:', response.status, response.statusText);
+  //         toast.error(`Video file not accessible: ${selectedVideo.url} (${response.status})`);
+  //       }
+  //     } catch (error) {
+  //       console.error('Video accessibility test failed:', error);
+  //       toast.error(`Video file test failed: ${selectedVideo.url}`);
+  //     }
+  //   };
+  //
+  //   testVideoAccess();
+  // }, [selectedVideo]);
 
   // Handle text change
   const handleTextChange = (text: string) => {

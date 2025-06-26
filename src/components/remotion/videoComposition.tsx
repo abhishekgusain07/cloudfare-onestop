@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { AbsoluteFill, Video, Audio, useVideoConfig, interpolate, useCurrentFrame } from 'remotion';
 
 interface VideoCompositionProps {
@@ -17,17 +17,13 @@ interface VideoCompositionProps {
 
 // Simplified utility function to transform video URL for R2 compatibility
 const transformVideoUrl = (url?: string, selectedTemplate?: string): string => {
-  console.log('Transform video URL called with:', { url, selectedTemplate });
-  
   // If templateUrl is provided and is a full URL (R2 URL), use it directly
   if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
-    console.log('Using provided templateUrl (R2 URL):', url);
     return url;
   }
   
   // If selectedTemplate is provided and is a full URL (R2 URL), use it directly  
   if (selectedTemplate && (selectedTemplate.startsWith('http://') || selectedTemplate.startsWith('https://'))) {
-    console.log('Using selectedTemplate (R2 URL):', selectedTemplate);
     return selectedTemplate;
   }
   
@@ -38,9 +34,7 @@ const transformVideoUrl = (url?: string, selectedTemplate?: string): string => {
   
   // If templateUrl is provided as relative path (legacy), convert to absolute for rendering
   if (url && url.startsWith('/ugc/videos/')) {
-    const absoluteUrl = `${baseUrl}${url}`;
-    console.log('Converting legacy relative path to absolute URL:', absoluteUrl);
-    return absoluteUrl;
+    return `${baseUrl}${url}`;
   }
   
   // If selectedTemplate looks like a filename (legacy)
@@ -55,19 +49,14 @@ const transformVideoUrl = (url?: string, selectedTemplate?: string): string => {
       filename = `${selectedTemplate}.mp4`;
     }
     
-    // Use absolute URL for rendering, relative for preview (legacy)
-    const videoUrl = `${baseUrl}/ugc/videos/${filename}`;
-    console.log('Using selectedTemplate to construct legacy URL:', videoUrl);
-    return videoUrl;
+    return `${baseUrl}/ugc/videos/${filename}`;
   }
   
   // If url is provided, clean it and use appropriate base (legacy)
   if (url) {
     let cleanUrl = url;
     if (cleanUrl.startsWith('/ugc/videos/')) {
-      const absoluteUrl = `${baseUrl}${cleanUrl}`;
-      console.log('Converting legacy frontend path to absolute:', absoluteUrl);
-      return absoluteUrl;
+      return `${baseUrl}${cleanUrl}`;
     } else if (cleanUrl.startsWith('ugc/videos/')) {
       cleanUrl = `/${cleanUrl}`;
     } else if (cleanUrl.startsWith('/')) {
@@ -76,15 +65,11 @@ const transformVideoUrl = (url?: string, selectedTemplate?: string): string => {
       cleanUrl = `/ugc/videos/${cleanUrl}`;
     }
     
-    const finalUrl = `${baseUrl}${cleanUrl}`;
-    console.log('Constructed legacy URL from path:', finalUrl);
-    return finalUrl;
+    return `${baseUrl}${cleanUrl}`;
   }
   
   // Final fallback - use video 1.mp4 (legacy)
-  const defaultUrl = `${baseUrl}/ugc/videos/1.mp4`;
-  console.log('Using default legacy fallback URL:', defaultUrl);
-  return defaultUrl;
+  return `${baseUrl}/ugc/videos/1.mp4`;
 };
 
 export const VideoComposition: React.FC<VideoCompositionProps> = ({
@@ -103,18 +88,21 @@ export const VideoComposition: React.FC<VideoCompositionProps> = ({
   const frame = useCurrentFrame();
   const [videoError, setVideoError] = useState<string | null>(null);
 
-  // Transform the video URL with R2 support
-  const transformedTemplateUrl = transformVideoUrl(templateUrl, selectedTemplate);
+  // Transform the video URL with R2 support - memoized to prevent infinite loops
+  const transformedTemplateUrl = useMemo(() => {
+    console.log('🔄 transformVideoUrl called (should only happen when templateUrl or selectedTemplate changes)', { templateUrl, selectedTemplate });
+    return transformVideoUrl(templateUrl, selectedTemplate);
+  }, [templateUrl, selectedTemplate]);
 
-  console.log('VideoComposition render with:', {
-    selectedTemplate,
-    templateUrl,
-    transformedTemplateUrl,
-    text,
-    textPosition,
-    frame,
-    durationInFrames
-  });
+  // console.log('VideoComposition render with:', {
+  //   selectedTemplate,
+  //   templateUrl,
+  //   transformedTemplateUrl,
+  //   text,
+  //   textPosition,
+  //   frame,
+  //   durationInFrames
+  // });
 
   // Simple effect to notify about duration (without delayRender)
   useEffect(() => {
@@ -230,6 +218,10 @@ export const VideoComposition: React.FC<VideoCompositionProps> = ({
           console.error('Remotion Video component error:', error);
           setVideoError(`Remotion Video component error: ${error.message || error}`);
         }}
+        // Performance optimizations
+        preload="metadata" // Preload video metadata for faster start
+        crossOrigin="anonymous" // Enable CORS for R2 videos
+        playsInline={true} // Better mobile performance
       />
 
       {/* Background Music */}

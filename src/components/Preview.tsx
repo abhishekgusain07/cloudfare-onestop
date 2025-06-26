@@ -201,6 +201,19 @@ export const Preview = () => {
         loop
         showVolumeControls
         showPlaybackRateControl
+        // Performance optimizations
+        renderLoading={() => (
+          <div className="flex items-center justify-center h-full bg-gray-800">
+            <div className="text-white">Loading video...</div>
+          </div>
+        )}
+        errorFallback={({ error }) => (
+          <div className="flex items-center justify-center h-full bg-red-900 text-white">
+            <div>Error: {error.message}</div>
+          </div>
+        )}
+        // Reduce quality for preview to improve performance
+        numberOfSharedAudioTags={0}
       />
     </div>
   );

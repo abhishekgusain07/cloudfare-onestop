@@ -114,25 +114,47 @@ app.get('/videos', async (req: any, res: any) => {
       Bucket: R2_BUCKET_NAME,
       Prefix: 'videos/', // Assuming your videos are in a 'videos/' subfolder
     });
-    
+    const command2 = new ListObjectsV2Command({
+      Bucket: R2_BUCKET_NAME,
+      Prefix: 'images/', // Assuming your images are in a 'images/' subfolder
+    });
+
     const data = await r2.send(command);
-    
+    const data2 = await r2.send(command2);
+
     if (!data.Contents) {
       return res.json({ success: true, videos: [], count: 0 });
     }
 
+    // Create a map of available thumbnails for quick lookup
+    const thumbnailMap = new Map<string, string>();
+    if (data2.Contents) {
+      data2.Contents
+        .filter(obj => obj.Key && obj.Key.toLowerCase().endsWith('.png'))
+        .forEach(obj => {
+          const filename = path.basename(obj.Key!);
+          const thumbnailId = filename.replace('.png', '');
+          thumbnailMap.set(thumbnailId, obj.Key!);
+        });
+    }
+    
     const videoFiles = data.Contents
       .filter(obj => obj.Key && obj.Key.toLowerCase().endsWith('.mp4'))
       .map(obj => {
         const filename = path.basename(obj.Key!);
         const videoId = filename.replace('.mp4', '');
-        const thumbnailKey = `images/${videoId}.jpg`; // Assuming thumbnail filename matches video ID + .jpg
+        
+        // Check if corresponding thumbnail exists
+        const thumbnailKey = thumbnailMap.get(videoId);
+        const thumbnailUrl = thumbnailKey 
+          ? `${R2_PUBLIC_URL_BASE}/${thumbnailKey}` 
+          : undefined;
         
         return {
           id: videoId,
           name: filename,
           url: `${R2_PUBLIC_URL_BASE}/${obj.Key}`, // Full public R2 URL for video
-          thumbnailUrl: `${R2_PUBLIC_URL_BASE}/${thumbnailKey}`, // Full public R2 URL for thumbnail
+          thumbnailUrl: thumbnailUrl, // Full public R2 URL for thumbnail if it exists
           size: obj.Size || 0,
           filename: filename
         };
@@ -150,6 +172,7 @@ app.get('/videos', async (req: any, res: any) => {
       });
 
     console.log(`Found ${videoFiles.length} videos in R2 bucket`);
+    console.log(videoFiles.slice(0, 2));
     res.json({
       success: true,
       videos: videoFiles,

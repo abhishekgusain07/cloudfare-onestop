@@ -39,6 +39,8 @@ export const VideoSelector: React.FC<VideoSelectorProps> = ({
       const data = await response.json();
       
       if (data.success) {
+        // Reduced logging for performance
+        console.log(`✅ Fetched ${data.videos.length} videos from R2`);
         setVideos(data.videos);
         // Auto-select first video if none selected
         if (!selectedVideo && data.videos.length > 0) {
@@ -129,16 +131,23 @@ export const VideoSelector: React.FC<VideoSelectorProps> = ({
                   src={video.thumbnailUrl}
                   alt={`Thumbnail for Video ${video.id}`}
                   className="w-full h-full object-cover"
+                  loading="lazy" // Lazy load thumbnails for better performance
+                  decoding="async" // Async image decoding
                   onError={(e) => {
-                    // Fallback to play icon if thumbnail fails to load
-                    e.currentTarget.style.display = 'none';
-                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                    console.log('Thumbnail failed to load:', video.thumbnailUrl);
+                    // Hide the broken image and show fallback
+                    const target = e.currentTarget as HTMLImageElement;
+                    target.style.display = 'none';
+                    const fallback = target.parentElement?.querySelector('.fallback-icon') as HTMLElement;
+                    if (fallback) {
+                      fallback.classList.remove('hidden');
+                    }
                   }}
                 />
               ) : null}
               {/* Fallback Play Icon - shown if no thumbnail or thumbnail fails to load */}
-              <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 ${video.thumbnailUrl ? 'hidden' : ''}`}>
-                <Play className="w-8 h-8 text-gray-400" />
+              <div className={`fallback-icon w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 ${video.thumbnailUrl ? 'hidden' : ''}`}>
+                <Play className="w-8 h-8 text-white" />
               </div>
               
               {/* Hover overlay */}

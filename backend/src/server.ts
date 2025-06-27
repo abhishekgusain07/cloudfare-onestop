@@ -32,7 +32,7 @@ const R2_PUBLIC_URL_BASE = process.env.R2_PUBLIC_URL_BASE;
 app.use(cors({
   origin: [
     'http://localhost:3000',  // Next.js frontend
-    'http://localhost:3001',  // Backend server
+    process.env.BACKEND_URL || 'http://localhost:3001',  // Backend server
     'http://localhost:3002',  // Potential Remotion webpack server
   ],
   methods: ['GET', 'POST', 'HEAD', 'OPTIONS'],
@@ -137,9 +137,19 @@ app.get('/videos', async (req: any, res: any) => {
           thumbnailMap.set(thumbnailId, obj.Key!);
         });
     }
+
+    // Create a map of available preview videos for quick lookup
+    const previewMap = new Map<string, string>();
+    data.Contents
+      .filter(obj => obj.Key && obj.Key.includes('videos/previews/') && obj.Key.toLowerCase().endsWith('.mp4'))
+      .forEach(obj => {
+        const filename = path.basename(obj.Key!);
+        const videoId = filename.replace('.mp4', '');
+        previewMap.set(videoId, obj.Key!);
+      });
     
     const videoFiles = data.Contents
-      .filter(obj => obj.Key && obj.Key.toLowerCase().endsWith('.mp4'))
+      .filter(obj => obj.Key && obj.Key.toLowerCase().endsWith('.mp4') && !obj.Key.includes('videos/previews/')) // Only main videos, not previews
       .map(obj => {
         const filename = path.basename(obj.Key!);
         const videoId = filename.replace('.mp4', '');
@@ -149,11 +159,18 @@ app.get('/videos', async (req: any, res: any) => {
         const thumbnailUrl = thumbnailKey 
           ? `${R2_PUBLIC_URL_BASE}/${thumbnailKey}` 
           : undefined;
+
+        // Check if corresponding preview video exists
+        const previewKey = previewMap.get(videoId);
+        const previewUrl = previewKey 
+          ? `${R2_PUBLIC_URL_BASE}/${previewKey}` 
+          : undefined;
         
         return {
           id: videoId,
           name: filename,
-          url: `${R2_PUBLIC_URL_BASE}/${obj.Key}`, // Full public R2 URL for video
+          url: `${R2_PUBLIC_URL_BASE}/${obj.Key}`, // Full public R2 URL for original video
+          previewUrl: previewUrl, // Full public R2 URL for optimized preview video
           thumbnailUrl: thumbnailUrl, // Full public R2 URL for thumbnail if it exists
           size: obj.Size || 0,
           filename: filename

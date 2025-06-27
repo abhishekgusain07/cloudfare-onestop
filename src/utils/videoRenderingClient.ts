@@ -39,9 +39,9 @@ interface VideoParams {
   class VideoRenderingClient {
     private baseUrl: string;
   
-    constructor(baseUrl: string = 'http://localhost:3001') {
-      this.baseUrl = baseUrl;
-    }
+      constructor(baseUrl: string = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001') {
+    this.baseUrl = baseUrl;
+  }
   
     // Start a new video render
     async startRender(videoParams: VideoParams, template: Template): Promise<RenderResponse> {

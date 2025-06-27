@@ -35,6 +35,7 @@ interface Video {
   id: string;
   name: string;
   url: string;
+  previewUrl?: string; // Added for optimized preview videos
   thumbnailUrl?: string; // Added for R2 thumbnails
   size: number;
   filename: string;
@@ -78,7 +79,8 @@ export default function CreatePage() {
   const template = selectedVideo ? {
     id: selectedVideo.id,
     name: `Video ${selectedVideo.id}`,
-    url: selectedVideo.url,
+    url: selectedVideo.url, // Original high-quality URL for final rendering
+    previewUrl: selectedVideo.previewUrl || selectedVideo.url, // Optimized preview URL for player, fallback to original
     duration: actualVideoDuration,
     thumbnail: selectedVideo.thumbnailUrl || `/images/${selectedVideo.id}.png` // Use R2 thumbnail or fallback
   } : null;
@@ -197,8 +199,12 @@ export default function CreatePage() {
     setDownloadUrl(null);
     
     try {
-      // Start the render
-      const result = await videoRenderingClient.startRender(videoParams, template);
+      // Start the render using original high-quality video URL
+      const renderTemplate = {
+        ...template,
+        url: template.url // Ensure we use the original high-quality URL for rendering
+      };
+      const result = await videoRenderingClient.startRender(videoParams, renderTemplate);
       
       if (result.success && result.renderId) {
         setRenderId(result.renderId);
@@ -350,7 +356,7 @@ export default function CreatePage() {
                           textOpacity: videoParams.textOpacity,
                           musicUrl: videoParams.musicUrl,
                           musicVolume: videoParams.musicVolume,
-                          templateUrl: template.url,
+                          templateUrl: template.previewUrl, // Use optimized preview for smooth playback
                           onDurationFound: handleDurationFound,
                         }}
                         durationInFrames={Math.round((template.duration || 30) * 30)}

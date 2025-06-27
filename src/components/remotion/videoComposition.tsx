@@ -30,7 +30,7 @@ const transformVideoUrl = (url?: string, selectedTemplate?: string): string => {
   // Legacy support: For older local file paths or relative paths
   // During Remotion rendering, we need absolute URLs pointing to the backend server
   const isRendering = typeof window === 'undefined' || process.env.NODE_ENV === 'production';
-  const baseUrl = isRendering ? 'http://localhost:3001' : '';
+  const baseUrl = isRendering ? (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001') : '';
   
   // If templateUrl is provided as relative path (legacy), convert to absolute for rendering
   if (url && url.startsWith('/ugc/videos/')) {

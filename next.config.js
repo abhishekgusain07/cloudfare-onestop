@@ -71,7 +71,7 @@ const nextConfig = {
     ignoreDuringBuilds: true
   },
   images: {
-    domains: ['assets.aceternity.com', 'res.cloudinary.com','oaidalleapiprodscus.blob.core.windows.net'],
+    domains: ['assets.aceternity.com', 'res.cloudinary.com','oaidalleapiprodscus.blob.core.windows.net','d3cqxidtqh4nzy.cloudfront.net',"pub-e417bacc3219477ba0f53509654df970.r2.dev"],
   },
   // Fixed experimental configuration
   experimental: {

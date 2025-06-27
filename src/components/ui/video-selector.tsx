@@ -1,12 +1,15 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Film } from 'lucide-react';
+import Image from 'next/image';
+import { cn } from '@/lib/utils';
 
 interface Video {
   id: string;
   name: string;
   url: string;
+  previewUrl?: string; // Added for optimized preview videos
   thumbnailUrl?: string; // Added for R2 thumbnails
   size: number;
   filename: string;
@@ -18,6 +21,69 @@ interface VideoSelectorProps {
   className?: string;
 }
 
+// Custom hook for intersection observer
+const useIntersectionObserver = (options: IntersectionObserverInit = {}) => {
+  const [isIntersecting, setIsIntersecting] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsIntersecting(entry.isIntersecting),
+      { threshold: 0.1, ...options }
+    );
+
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
+
+  return [ref, isIntersecting] as const;
+};
+
+// Video item component with lazy loading
+const VideoItem: React.FC<{
+  video: Video;
+  isSelected: boolean;
+  onSelect: (video: Video) => void;
+  formatFileSize: (bytes: number) => string;
+}> = ({ video, isSelected, onSelect, formatFileSize }) => {
+  const [ref, isVisible] = useIntersectionObserver();
+  const [previewVideo, setPreviewVideo] = useState(false);
+  const [thumbnailError, setThumbnailError] = useState(false);
+  const [thumbnailLoading, setThumbnailLoading] = useState(false);
+
+  return (
+    <div
+      ref={ref}
+      className={`relative group cursor-pointer rounded-lg border-2 transition-all duration-200 ${
+        isSelected
+          ? 'border-purple-500 bg-purple-50'
+          : 'border-gray-200 hover:border-gray-300 bg-white'
+      }`}
+      onClick={() => onSelect(video)}
+    >
+      {/* Video Thumbnail/Preview */}
+      <div className={cn(`aspect-[9/16] bg-gray-100 rounded-t-lg relative overflow-hidden hover:scale-105 transition-all duration-200 ${video.previewUrl ? 'hover:scale-105' : ''} `)}>
+            <div className="flex items-center justify-center overflow-hidden">
+              
+              {video.thumbnailUrl && <img
+                src={video.thumbnailUrl}
+                alt={`Thumbnail for Video ${video.id}`}
+                className="w-full h-full object-cover"
+                loading="lazy"
+                onLoadStart={() => setThumbnailLoading(true)}
+                onLoad={() => setThumbnailLoading(false)}
+                onError={() => {
+                  console.log(`Thumbnail failed for video ${video.id}`);
+                  setThumbnailError(true);
+                  setThumbnailLoading(false);
+                }}
+              />}
+            </div>
+      </div>
+    </div>
+  );
+};
+
 export const VideoSelector: React.FC<VideoSelectorProps> = ({
   selectedVideo,
   onVideoSelect,
@@ -26,10 +92,6 @@ export const VideoSelector: React.FC<VideoSelectorProps> = ({
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [previewVideo, setPreviewVideo] = useState<string | null>(null);
-  // Add thumbnail loading and error state management
-  const [thumbnailErrors, setThumbnailErrors] = useState<Set<string>>(new Set());
-  const [thumbnailLoading, setThumbnailLoading] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchVideos();
@@ -38,22 +100,30 @@ export const VideoSelector: React.FC<VideoSelectorProps> = ({
   const fetchVideos = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:3001/videos');
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+      const response = await fetch(`${backendUrl}/videos`);
       const data = await response.json();
       
       if (data.success) {
-        // Enhanced logging to debug thumbnailUrl values
         console.log(`✅ Fetched ${data.videos.length} videos from R2`);
-        console.log('Sample video with thumbnail data:', data.videos[0]);
+        console.log('Sample video data:', data.videos[0]);
         
-        // Debug: Log all thumbnailUrl values to check if they're being set correctly
+        // Debug thumbnail URLs specifically
         const videosWithThumbnails = data.videos.filter((v: Video) => v.thumbnailUrl);
         const videosWithoutThumbnails = data.videos.filter((v: Video) => !v.thumbnailUrl);
         console.log(`📸 Videos with thumbnails: ${videosWithThumbnails.length}`);
         console.log(`❌ Videos without thumbnails: ${videosWithoutThumbnails.length}`);
         
         if (videosWithThumbnails.length > 0) {
-          console.log('Sample thumbnail URL:', videosWithThumbnails[0].thumbnailUrl);
+          console.log('First 3 thumbnail URLs:', videosWithThumbnails.slice(0, 3).map((v: Video) => ({
+            id: v.id,
+            thumbnailUrl: v.thumbnailUrl
+          })));
+        }
+        
+        // Log videos that should have thumbnails but don't
+        if (videosWithoutThumbnails.length > 0) {
+          console.log('Videos missing thumbnails:', videosWithoutThumbnails.slice(0, 5).map((v: Video) => v.id));
         }
         
         setVideos(data.videos);
@@ -72,35 +142,10 @@ export const VideoSelector: React.FC<VideoSelectorProps> = ({
     }
   };
 
-  // Simplified thumbnail error handling using React state
-  const handleThumbnailError = (videoId: string) => {
-    console.log('Thumbnail failed to load for video:', videoId);
-    setThumbnailErrors(prev => new Set([...prev, videoId]));
-    setThumbnailLoading(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(videoId);
-      return newSet;
-    });
-  };
-
-  const handleThumbnailLoad = (videoId: string) => {
-    console.log('Thumbnail loaded successfully for video:', videoId);
-    console.log('Thumbnail URL:', videos.find(v => v.id === videoId)?.thumbnailUrl);
-    setThumbnailLoading(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(videoId);
-      return newSet;
-    });
-  };
-
-  const handleThumbnailLoadStart = (videoId: string) => {
-    setThumbnailLoading(prev => new Set([...prev, videoId]));
-  };
-
-  const formatFileSize = (bytes: number): string => {
+  const formatFileSize = useCallback((bytes: number): string => {
     const mb = bytes / (1024 * 1024);
     return `${mb.toFixed(1)} MB`;
-  };
+  }, []);
 
   if (loading) {
     return (
@@ -146,82 +191,13 @@ export const VideoSelector: React.FC<VideoSelectorProps> = ({
       
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-80 overflow-y-auto">
         {videos.map((video) => (
-          <div
+          <VideoItem
             key={video.id}
-            className={`relative group cursor-pointer rounded-lg border-2 transition-all duration-200 ${
-              selectedVideo === video.filename
-                ? 'border-purple-500 bg-purple-50'
-                : 'border-gray-200 hover:border-gray-300 bg-white'
-            }`}
-            onClick={() => onVideoSelect(video)}
-          >
-            {/* Video Thumbnail/Preview */}
-            <div className="aspect-video bg-gray-100 rounded-t-lg relative overflow-hidden">
-              {previewVideo === video.filename ? (
-                <video
-                  src={video.url}
-                  className="w-full h-full object-cover"
-                  autoPlay
-                  loop
-                  muted
-                  onError={() => setPreviewVideo(null)}
-                />
-              ) : (
-                // Simplified thumbnail rendering logic
-                <>
-                  {!thumbnailErrors.has(video.id) && video.thumbnailUrl ? (
-                    <img
-                      src={video.thumbnailUrl}
-                      alt={`Thumbnail for Video ${video.id}`}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                      onLoadStart={() => handleThumbnailLoadStart(video.id)}
-                      onLoad={() => handleThumbnailLoad(video.id)}
-                      onError={() => handleThumbnailError(video.id)}
-                    />
-                  ) : (
-                    // Clean fallback UI
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
-                      <Play className="w-8 h-8 text-white" />
-                    </div>
-                  )}
-                  
-                  {/* Loading indicator for thumbnails */}
-                  {thumbnailLoading.has(video.id) && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-gray-200 bg-opacity-75">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
-                    </div>
-                  )}
-                </>
-              )}
-              
-              {/* Hover overlay */}
-              <div 
-                className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center"
-                onMouseEnter={() => setPreviewVideo(video.filename)}
-                onMouseLeave={() => setPreviewVideo(null)}
-              >
-                <Play className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-              </div>
-              
-              {/* Selected indicator */}
-              {selectedVideo === video.filename && (
-                <div className="absolute top-2 right-2 w-4 h-4 bg-purple-500 rounded-full flex items-center justify-center">
-                  <div className="w-2 h-2 bg-white rounded-full"></div>
-                </div>
-              )}
-            </div>
-            
-            {/* Video Info */}
-            <div className="p-2">
-              <div className="font-medium text-sm text-gray-900 truncate">
-                Video {video.id}
-              </div>
-              <div className="text-xs text-gray-500">
-                {formatFileSize(video.size)}
-              </div>
-            </div>
-          </div>
+            video={video}
+            isSelected={selectedVideo === video.filename}
+            onSelect={onVideoSelect}
+            formatFileSize={formatFileSize}
+          />
         ))}
       </div>
       

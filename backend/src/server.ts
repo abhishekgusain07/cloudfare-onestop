@@ -173,7 +173,7 @@ app.get('/videos', async (req: any, res: any) => {
           previewUrl: previewUrl, // Full public R2 URL for optimized preview video
           thumbnailUrl: thumbnailUrl, // Full public R2 URL for thumbnail if it exists
           size: obj.Size || 0,
-          filename: filename
+          filename: filename // Convert size to duration in seconds
         };
       })
       .sort((a, b) => {

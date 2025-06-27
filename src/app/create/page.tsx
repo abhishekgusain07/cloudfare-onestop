@@ -63,7 +63,7 @@ export default function CreatePage() {
   const [renderStatus, setRenderStatus] = useState<'idle' | 'rendering' | 'completed' | 'failed'>('idle');
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking');
-  const [actualVideoDuration, setActualVideoDuration] = useState<number>(30); // Default to 30 seconds
+  const [actualVideoDuration, setActualVideoDuration] = useState<number>(5); // Default to 30 seconds
 
   // Handle video selection from VideoSelector
   const handleVideoSelect = (video: Video) => {
@@ -359,10 +359,10 @@ export default function CreatePage() {
                           templateUrl: template.previewUrl, // Use optimized preview for smooth playback
                           onDurationFound: handleDurationFound,
                         }}
-                        durationInFrames={Math.round((template.duration || 30) * 30)}
+                        durationInFrames={Math.round((template.duration || 10) * 30)}
                         compositionWidth={540} // Reduced from 1080 for better preview performance
                         compositionHeight={960} // Reduced from 1920 for better preview performance
-                        fps={30}
+                        fps={60}
                         className="w-full h-full"
                         style={{
                           width: '100%',
@@ -379,7 +379,6 @@ export default function CreatePage() {
                         initialFrame={0}
                         doubleClickToFullscreen={false}
                         moveToBeginningWhenEnded={false}
-                        // Performance optimizations for smooth playback
                         renderLoading={() => (
                           <div className="w-full h-full flex items-center justify-center bg-slate-800">
                             <div className="animate-pulse text-white">Loading...</div>

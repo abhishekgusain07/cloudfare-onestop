@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await request.json();
-    const { name } = data;
+    const { name, description } = data;
 
     if (!name || name.trim().length === 0) {
       return NextResponse.json(
@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
       id: nanoid(),
       userId: session.user.id,
       name: name.trim(),
+      description: description?.trim() || null,
       createdAt: new Date(),
     });
 
@@ -80,6 +81,7 @@ export async function GET(request: NextRequest) {
       const collections = await db.select({
         id: userImageCollections.id,
         name: userImageCollections.name,
+        description: userImageCollections.description,
         createdAt: userImageCollections.createdAt,
         userId: userImageCollections.userId,
       })

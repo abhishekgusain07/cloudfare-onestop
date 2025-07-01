@@ -186,6 +186,7 @@ export const userImageCollections = pgTable('user_image_collections', {
 	id: text('id').primaryKey(),
 	userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
 	name: text('name').notNull(),
+	description: text('description'),
 	createdAt: timestamp('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 

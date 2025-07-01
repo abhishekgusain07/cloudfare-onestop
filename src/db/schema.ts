@@ -163,3 +163,49 @@ export const insertVideoSchema = createInsertSchema(videos);
 
 export const selectVideoAssetSchema = createSelectSchema(videoAssets);
 export const insertVideoAssetSchema = createInsertSchema(videoAssets);
+
+// Slideshow Feature Tables
+export const slideshows = pgTable('slideshows', {
+	id: text('id').primaryKey(),
+	userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+	title: text('title').notNull(),
+	createdAt: timestamp('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: timestamp('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const slides = pgTable('slides', {
+	id: text('id').primaryKey(),
+	slideshowId: text('slideshow_id').notNull().references(() => slideshows.id, { onDelete: 'cascade' }),
+	order: integer('order').notNull(),
+	imageUrl: text('image_url').notNull(),
+	text: text('text'),
+	createdAt: timestamp('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const userImageCollections = pgTable('user_image_collections', {
+	id: text('id').primaryKey(),
+	userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+	name: text('name').notNull(),
+	createdAt: timestamp('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const userImages = pgTable('user_images', {
+	id: text('id').primaryKey(),
+	collectionId: text('collection_id').notNull().references(() => userImageCollections.id, { onDelete: 'cascade' }),
+	userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+	url: text('url').notNull(),
+	createdAt: timestamp('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+// Zod schemas for the new tables
+export const selectSlideshowSchema = createSelectSchema(slideshows);
+export const insertSlideshowSchema = createInsertSchema(slideshows);
+
+export const selectSlideSchema = createSelectSchema(slides);
+export const insertSlideSchema = createInsertSchema(slides);
+
+export const selectUserImageCollectionSchema = createSelectSchema(userImageCollections);
+export const insertUserImageCollectionSchema = createInsertSchema(userImageCollections);
+
+export const selectUserImageSchema = createSelectSchema(userImages);
+export const insertUserImageSchema = createInsertSchema(userImages);

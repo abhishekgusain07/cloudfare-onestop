@@ -13,7 +13,9 @@ import {
   Download,
   Sparkles,
   Loader2,
-  X
+  X,
+  ChevronRight,
+  ArrowLeft
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -87,6 +89,8 @@ const SlideshowPage = () => {
   const [imagePrompt, setImagePrompt] = useState('');
   const [slideshowPreview, setSlideshowPreview] = useState(false);
   const [isLoadingCollections, setIsLoadingCollections] = useState(true);
+  const [openedCollection, setOpenedCollection] = useState<ImageCollection | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   // Load user's slideshows
   const loadSlideshows = async () => {
@@ -202,6 +206,7 @@ const SlideshowPage = () => {
 
   // Upload image to collection
   const uploadImage = async (file: File, collectionId: string) => {
+    setIsUploadingImage(true);
     const formData = new FormData();
     formData.append('image', file);
     formData.append('collectionId', collectionId);
@@ -221,11 +226,32 @@ const SlideshowPage = () => {
               : collection
           )
         );
+        
+        // Update opened collection if it's the same collection
+        if (openedCollection?.id === collectionId) {
+          setOpenedCollection(prev => prev ? { 
+            ...prev, 
+            images: [...prev.images, newImage] 
+          } : null);
+        }
+        
         return newImage;
       }
     } catch (error) {
       console.error('Failed to upload image:', error);
+    } finally {
+      setIsUploadingImage(false);
     }
+  };
+
+  // Open collection detail view
+  const openCollection = (collection: ImageCollection) => {
+    setOpenedCollection(collection);
+  };
+
+  // Close collection detail view
+  const closeCollection = () => {
+    setOpenedCollection(null);
   };
 
   // Generate AI image
@@ -589,17 +615,140 @@ const SlideshowPage = () => {
 
           {/* Images Tab */}
           <TabsContent value="images" className="space-y-4">
-            {/* Collection Management Header */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold">My Image Collections</h2>
-                <p className="text-gray-600 mt-1">Organize your images into collections</p>
+            {openedCollection ? (
+              /* Collection Detail View */
+              <div className="space-y-4">
+                {/* Breadcrumb Navigation */}
+                <div className="flex items-center gap-2 text-sm cursor-pointer">
+                  <button 
+                    onClick={closeCollection}
+                    className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Images
+                  </button>
+                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                  <span className="text-gray-900 font-medium">{openedCollection.name}</span>
+                </div>
+
+                {/* Collection Header */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold">{openedCollection.name}</h2>
+                    <p className="text-gray-600 mt-1">
+                      {openedCollection.images?.length || 0} images in this collection
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <label className="cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/*,image/gif"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || []);
+                          files.forEach(file => uploadImage(file, openedCollection.id));
+                        }}
+                        disabled={isUploadingImage}
+                      />
+                      <Button disabled={isUploadingImage}>
+                        {isUploadingImage ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4 mr-2" />
+                            Upload Images
+                          </>
+                        )}
+                      </Button>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Images Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                  {openedCollection.images && openedCollection.images.length > 0 ? (
+                    openedCollection.images.map((image) => (
+                      <div key={image.id} className="group relative aspect-square">
+                        <div className="relative w-full h-full bg-gray-100 rounded-lg overflow-hidden border border-gray-200 hover:shadow-md transition-shadow cursor-pointer">
+                          <img
+                            src={image.url}
+                            alt="Collection image"
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                              {currentSlideshow && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => addSlide(image.url)}
+                                  className="bg-white text-black hover:bg-gray-100"
+                                >
+                                  <Plus className="w-4 h-4 mr-1" />
+                                  Add to Slideshow
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="col-span-full">
+                      <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg">
+                        <ImageIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold mb-2">No Images Yet</h3>
+                        <p className="text-gray-600 mb-4">Upload your first images to this collection!</p>
+                        <label className="cursor-pointer inline-block">
+                          <input
+                            type="file"
+                            accept="image/*,image/gif"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => {
+                              const files = Array.from(e.target.files || []);
+                              files.forEach(file => uploadImage(file, openedCollection.id));
+                            }}
+                            disabled={isUploadingImage}
+                          />
+                          <Button disabled={isUploadingImage}>
+                            {isUploadingImage ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Uploading...
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="w-4 h-4 mr-2" />
+                                Upload Images
+                              </>
+                            )}
+                          </Button>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-              <Button onClick={() => setIsCreateCollectionModalOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                New Collection
-              </Button>
-            </div>
+            ) : (
+              /* Collections Grid View */
+              <div className="space-y-4">
+                {/* Collection Management Header */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold">My Image Collections</h2>
+                    <p className="text-gray-600 mt-1">Organize your images into collections</p>
+                  </div>
+                  <Button onClick={() => setIsCreateCollectionModalOpen(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    New Collection
+                  </Button>
+                </div>
 
             {/* Collections Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -623,7 +772,18 @@ const SlideshowPage = () => {
               ) : (
                 <>
                   {/* All Images Collection */}
-                  <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                  <Card 
+                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => {
+                      // Create a virtual "All Images" collection
+                      const allImages = userCollections.flatMap(collection => collection.images || []);
+                      openCollection({
+                        id: 'all-images',
+                        name: 'All Images',
+                        images: allImages
+                      });
+                    }}
+                  >
                     <CardContent className="p-4 text-center">
                       <div className="w-16 h-16 bg-gray-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
                         <ImageIcon className="w-8 h-8 text-gray-400" />
@@ -639,18 +799,28 @@ const SlideshowPage = () => {
                   {userCollections && userCollections.length > 0 ? userCollections.map((collection) => (
                     <Card key={collection.id} className="cursor-pointer hover:shadow-md transition-shadow">
                       <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-3">
+                        <div 
+                          className="flex items-center justify-between mb-3"
+                          onClick={() => openCollection(collection)}
+                        >
                           <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
                             <ImageIcon className="w-5 h-5 text-gray-400" />
                           </div>
-                          <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-red-500 hover:text-red-700"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
-                        <h3 className="font-medium mb-1">{collection.name}</h3>
-                        <p className="text-sm text-gray-500 mb-3">
-                          {collection.images?.length || 0} images
-                        </p>
+                        <div onClick={() => openCollection(collection)}>
+                          <h3 className="font-medium mb-1">{collection.name}</h3>
+                          <p className="text-sm text-gray-500 mb-3">
+                            {collection.images?.length || 0} images
+                          </p>
+                        </div>
                         <div className="flex gap-2">
                           <label className="flex-1 cursor-pointer">
                             <input
@@ -662,7 +832,12 @@ const SlideshowPage = () => {
                                 if (file) uploadImage(file, collection.id);
                               }}
                             />
-                            <Button size="sm" variant="outline" className="w-full">
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="w-full"
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <Upload className="w-4 h-4 mr-2" />
                               Upload
                             </Button>
@@ -689,20 +864,20 @@ const SlideshowPage = () => {
               )}
             </div>
 
-            {/* No Collections State */}
-            {!isLoadingCollections && userCollections.length === 0 && (
-              <div className="text-center py-12">
-                <ImageIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No Collections Yet</h3>
-                <p className="text-gray-600 mb-4">Create your first collection to organize your images!</p>
-                <Button onClick={() => setIsCreateCollectionModalOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create First Collection
-                </Button>
+                {/* No Collections State */}
+                {!isLoadingCollections && userCollections.length === 0 && (
+                  <div className="text-center py-12">
+                    <ImageIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No Collections Yet</h3>
+                    <p className="text-gray-600 mb-4">Create your first collection to organize your images!</p>
+                    <Button onClick={() => setIsCreateCollectionModalOpen(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create First Collection
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
-
-            
           </TabsContent>
 
           {/* AI Generate Tab */}

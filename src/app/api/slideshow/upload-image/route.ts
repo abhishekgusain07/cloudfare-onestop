@@ -5,6 +5,8 @@ import { db } from "@/db/drizzle";
 import { userImageCollections, userImages, insertUserImageSchema } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { nanoid } from "nanoid";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { env } from "@/env";
 
 // POST /api/slideshow/upload-image - Upload an image to user's collection
 export async function POST(request: NextRequest) {
@@ -23,12 +25,12 @@ export async function POST(request: NextRequest) {
 
     // Parse form data
     const formData = await request.formData();
-    const file = formData.get('file') as File;
+    const file = formData.get('image') as File;
     const collectionId = formData.get('collectionId') as string;
 
     if (!file) {
       return NextResponse.json(
-        { success: false, message: "No file provided" },
+        { success: false, message: "No image file provided" },
         { status: 400 }
       );
     }
@@ -73,33 +75,62 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check R2 configuration
+    if (!env.R2_BUCKET_NAME || !env.R2_ENDPOINT || !env.R2_ACCESS_KEY_ID || !env.R2_SECRET_ACCESS_KEY || !env.R2_PUBLIC_URL_BASE) {
+      console.error('Missing R2 configuration:', {
+        hasBucket: !!env.R2_BUCKET_NAME,
+        hasEndpoint: !!env.R2_ENDPOINT,
+        hasAccessKey: !!env.R2_ACCESS_KEY_ID,
+        hasSecretKey: !!env.R2_SECRET_ACCESS_KEY,
+        hasPublicUrl: !!env.R2_PUBLIC_URL_BASE
+      });
+      return NextResponse.json(
+        { success: false, message: "R2 storage configuration is incomplete. Please check your environment variables." },
+        { status: 500 }
+      );
+    }
+
     // Generate unique filename
     const fileExtension = file.name.split('.').pop() || 'jpg';
     const fileName = `${nanoid()}.${fileExtension}`;
     
-    // For now, we'll use Cloudinary (since it's already set up in the codebase)
-    // TODO: Replace with R2 upload once R2 is configured for slideshow images
+    // Initialize R2 client
+    const r2 = new S3Client({
+      region: 'auto',
+      endpoint: env.R2_ENDPOINT,
+      credentials: {
+        accessKeyId: env.R2_ACCESS_KEY_ID,
+        secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+      },
+      requestChecksumCalculation: "WHEN_REQUIRED", 
+      responseChecksumValidation: "WHEN_REQUIRED",
+    });
+
+    // Convert file to buffer
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Convert buffer to base64 for Cloudinary upload
-    const base64 = buffer.toString('base64');
-    const dataURI = `data:${file.type};base64,${base64}`;
-
-    // Upload to Cloudinary
-    const cloudinary = require('cloudinary').v2;
-    
-    // Configure Cloudinary (assuming env vars are set)
-    cloudinary.config({
-      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-      api_key: process.env.CLOUDINARY_API_KEY,
-      api_secret: process.env.CLOUDINARY_API_SECRET,
+    // Upload to R2
+    const r2Key = `slideshow-images/${fileName}`;
+    const uploadCommand = new PutObjectCommand({
+      Bucket: env.R2_BUCKET_NAME,
+      Key: r2Key,
+      Body: buffer,
+      ContentType: file.type,
+      ContentLength: buffer.length,
     });
 
-    const uploadResult = await cloudinary.uploader.upload(dataURI, {
-      folder: 'slideshow-images',
-      public_id: fileName.split('.')[0],
-      resource_type: 'image',
+    await r2.send(uploadCommand);
+
+    // Construct the public URL
+    const imageUrl = `${env.R2_PUBLIC_URL_BASE}/${r2Key}`;
+
+    console.log('R2 Upload successful:', {
+      fileName,
+      r2Key,
+      imageUrl,
+      fileSize: buffer.length,
+      contentType: file.type
     });
 
     // Save image metadata to database
@@ -107,7 +138,7 @@ export async function POST(request: NextRequest) {
       id: nanoid(),
       collectionId,
       userId: session.user.id,
-      url: uploadResult.secure_url,
+      url: imageUrl,
       createdAt: new Date(),
     });
 

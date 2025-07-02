@@ -89,7 +89,7 @@ export async function DELETE(
       );
     }
 
-    const { collectionId } = params;
+    const { collectionId } = await params;
 
     // Verify the collection belongs to the user
     const [existingCollection] = await db.select()

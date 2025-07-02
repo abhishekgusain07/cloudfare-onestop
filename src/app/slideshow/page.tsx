@@ -254,7 +254,9 @@ const SlideshowPage = () => {
       });
       
       if (response.ok) {
-        const newImage = await response.json();
+        const responseData = await response.json();
+        const newImage = responseData.success ? responseData.image : responseData;
+        
         setUserCollections(collections =>
           collections.map(collection =>
             collection.id === collectionId
@@ -272,6 +274,11 @@ const SlideshowPage = () => {
         }
         
         return newImage;
+      } else {
+        // Handle error response
+        const errorData = await response.json();
+        console.error('Upload failed:', errorData.message);
+        alert(`Upload failed: ${errorData.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Failed to upload image:', error);
@@ -861,26 +868,45 @@ const SlideshowPage = () => {
                           </p>
                         </div>
                         <div className="flex gap-2">
-                          <label className="flex-1 cursor-pointer">
+                          <div className="flex-1">
                             <input
+                              id={`upload-${collection.id}`}
                               type="file"
                               accept="image/*"
                               className="hidden"
                               onChange={(e) => {
                                 const file = e.target.files?.[0];
-                                if (file) uploadImage(file, collection.id);
+                                if (file) {
+                                  uploadImage(file, collection.id);
+                                  // Reset the input
+                                  e.target.value = '';
+                                }
                               }}
                             />
                             <Button 
                               size="sm" 
                               variant="outline" 
                               className="w-full"
-                              onClick={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const input = document.getElementById(`upload-${collection.id}`) as HTMLInputElement;
+                                if (input) input.click();
+                              }}
+                              disabled={isUploadingImage}
                             >
-                              <Upload className="w-4 h-4 mr-2" />
-                              Upload
+                              {isUploadingImage ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Uploading...
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="w-4 h-4 mr-2" />
+                                  Upload
+                                </>
+                              )}
                             </Button>
-                          </label>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>

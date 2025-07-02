@@ -48,7 +48,7 @@ export async function PUT(
     // Update the slide
     const [updatedSlide] = await db.update(slides)
       .set({
-        text: data.text !== undefined ? data.text : slide.slide.text,
+        textElements: data.textElements !== undefined ? data.textElements : slide.slide.textElements,
         imageUrl: data.imageUrl || slide.slide.imageUrl,
         order: data.order !== undefined ? data.order : slide.slide.order,
       })

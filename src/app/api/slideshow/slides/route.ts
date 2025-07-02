@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await request.json();
-    const { slideshowId, imageUrl, text, order } = data;
+    const { slideshowId, imageUrl, textElements, order } = data;
 
     // Verify the slideshow belongs to the user
     const [slideshow] = await db.select()
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       slideshowId,
       order: slideOrder,
       imageUrl,
-      text: text || null,
+      textElements: textElements || [],
       createdAt: new Date(),
     });
 
@@ -120,7 +120,7 @@ export async function PUT(request: NextRequest) {
       const [updatedSlide] = await db.update(slides)
         .set({
           order: slide.order,
-          text: slide.text !== undefined ? slide.text : undefined,
+          textElements: slide.textElements !== undefined ? slide.textElements : undefined,
           imageUrl: slide.imageUrl || undefined,
         })
         .where(and(

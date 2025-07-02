@@ -1,92 +1,40 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Plus, 
-  Upload, 
-  Image as ImageIcon, 
-  Type, 
-  Save, 
-  Play,
-  Trash2,
-  Edit3,
-  Download,
-  Sparkles,
-  Loader2,
-  X,
-  ChevronRight,
-  ArrowLeft
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  Slideshow, 
+  Slide, 
+  TextElement,
+  ImageCollection,
+  UserImage 
+} from './types';
+import { migrateSlidesToNewFormat, createDefaultTextElement } from './utils/dataCompatibility';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-
-interface Slideshow {
-  id: string;
-  title: string;
-  createdAt: string;
-  slides: Slide[];
-}
-
-interface Slide {
-  id: string;
-  order: number;
-  imageUrl: string;
-  text: string;
-}
-
-interface UserImage {
-  id: string;
-  url: string;
-  collectionId: string;
-}
-
-interface ImageCollection {
-  id: string;
-  name: string;
-  images: UserImage[];
-}
-
-// Skeleton component for loading collections
-const CollectionSkeleton = () => (
-  <Card className="cursor-pointer hover:shadow-md transition-shadow">
-    <CardContent className="p-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="w-10 h-10 bg-gray-200 rounded-lg animate-pulse"></div>
-        <div className="w-6 h-6 bg-gray-200 rounded animate-pulse"></div>
-      </div>
-      <div className="w-3/4 h-4 bg-gray-200 rounded animate-pulse mb-1"></div>
-      <div className="w-1/2 h-3 bg-gray-200 rounded animate-pulse mb-3"></div>
-      <div className="w-full h-8 bg-gray-200 rounded animate-pulse"></div>
-    </CardContent>
-  </Card>
-);
+  SlideshowGrid,
+  CollectionGrid,
+  CollectionDetail,
+  SlideshowEditor,
+  SlideshowEditorLayout,
+  SlideStrip,
+  EditingCanvas,
+  StylingToolbar,
+  AIImageGenerator,
+  CreateCollectionModal,
+  DeleteCollectionModal,
+  ImagePickerModal
+} from './components';
 
 const SlideshowPage = () => {
+  // State management
   const [slideshows, setSlideshows] = useState<Slideshow[]>([]);
   const [currentSlideshow, setCurrentSlideshow] = useState<Slideshow | null>(null);
   const [slides, setSlides] = useState<Slide[]>([]);
   const [selectedSlide, setSelectedSlide] = useState<Slide | null>(null);
   const [userCollections, setUserCollections] = useState<ImageCollection[]>([]);
-  const [newSlideshowTitle, setNewSlideshowTitle] = useState('');
-  const [newCollectionName, setNewCollectionName] = useState('');
-  const [newCollectionDescription, setNewCollectionDescription] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isCreateCollectionModalOpen, setIsCreateCollectionModalOpen] = useState(false);
   const [isCreatingCollection, setIsCreatingCollection] = useState(false);
   const [activeTab, setActiveTab] = useState('my-slideshows');
-  const [imagePrompt, setImagePrompt] = useState('');
   const [slideshowPreview, setSlideshowPreview] = useState(false);
   const [isLoadingCollections, setIsLoadingCollections] = useState(true);
   const [openedCollection, setOpenedCollection] = useState<ImageCollection | null>(null);
@@ -94,24 +42,25 @@ const SlideshowPage = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [collectionToDelete, setCollectionToDelete] = useState<ImageCollection | null>(null);
   const [isDeletingCollection, setIsDeletingCollection] = useState(false);
+  const [isCreateCollectionModalOpen, setIsCreateCollectionModalOpen] = useState(false);
+  const [isImagePickerModalOpen, setIsImagePickerModalOpen] = useState(false);
+  
+  // Phase 1 Editor State
+  const [selectedTextElement, setSelectedTextElement] = useState<TextElement | null>(null);
 
-  // Load user's slideshows
+  // API Functions
   const loadSlideshows = async () => {
     try {
       const response = await fetch('/api/slideshow');
       if (response.ok) {
         const data = await response.json();
-        // Ensure data is an array
         setSlideshows(Array.isArray(data) ? data : []);
       } else {
         console.error('Failed to load slideshows:', response.status);
-        
-        // If unauthorized, redirect to sign-in
         if (response.status === 401) {
           window.location.href = '/sign-in';
           return;
         }
-        
         setSlideshows([]);
       }
     } catch (error) {
@@ -120,26 +69,20 @@ const SlideshowPage = () => {
     }
   };
 
-  // Load user's image collections
   const loadCollections = async () => {
     setIsLoadingCollections(true);
     try {
       const response = await fetch('/api/slideshow/collections?includeImages=true');
       if (response.ok) {
         const data = await response.json();
-        // Extract collections from the API response
         const collections = data.success ? data.collections : data;
         setUserCollections(Array.isArray(collections) ? collections : []);
       } else {
-        const errorText = await response.text();
-        console.error('Failed to load collections:', response.status, errorText);
-        
-        // If unauthorized, redirect to sign-in
+        console.error('Failed to load collections:', response.status);
         if (response.status === 401) {
           window.location.href = '/sign-in';
           return;
         }
-        
         setUserCollections([]);
       }
     } catch (error) {
@@ -150,16 +93,13 @@ const SlideshowPage = () => {
     }
   };
 
-  // Create new slideshow
-  const createSlideshow = async () => {
-    if (!newSlideshowTitle.trim()) return;
-    
+  const createSlideshow = async (title: string) => {
     setIsLoading(true);
     try {
       const response = await fetch('/api/slideshow', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: newSlideshowTitle }),
+        body: JSON.stringify({ title }),
       });
       
       if (response.ok) {
@@ -167,7 +107,6 @@ const SlideshowPage = () => {
         setSlideshows([...slideshows, newSlideshow]);
         setCurrentSlideshow(newSlideshow);
         setSlides([]);
-        setNewSlideshowTitle('');
         setActiveTab('editor');
       }
     } catch (error) {
@@ -177,27 +116,19 @@ const SlideshowPage = () => {
     }
   };
 
-  // Create new collection
-  const createCollection = async () => {
-    if (!newCollectionName.trim()) return;
-    
+  const createCollection = async (name: string, description: string) => {
     setIsCreatingCollection(true);
     try {
       const response = await fetch('/api/slideshow/collections', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          name: newCollectionName,
-          description: newCollectionDescription 
-        }),
+        body: JSON.stringify({ name, description }),
       });
       
       if (response.ok) {
         const data = await response.json();
         const newCollection = data.success ? data.collection : data;
         setUserCollections([...userCollections, { ...newCollection, images: [] }]);
-        setNewCollectionName('');
-        setNewCollectionDescription('');
         setIsCreateCollectionModalOpen(false);
       }
     } catch (error) {
@@ -207,7 +138,6 @@ const SlideshowPage = () => {
     }
   };
 
-  // Delete collection
   const deleteCollection = async (collectionId: string) => {
     setIsDeletingCollection(true);
     try {
@@ -222,7 +152,6 @@ const SlideshowPage = () => {
         setIsDeleteModalOpen(false);
         setCollectionToDelete(null);
         
-        // If the deleted collection was currently opened, close it
         if (openedCollection?.id === collectionId) {
           setOpenedCollection(null);
         }
@@ -234,13 +163,6 @@ const SlideshowPage = () => {
     }
   };
 
-  // Handle delete collection confirmation
-  const handleDeleteCollection = (collection: ImageCollection) => {
-    setCollectionToDelete(collection);
-    setIsDeleteModalOpen(true);
-  };
-
-  // Upload image to collection
   const uploadImage = async (file: File, collectionId: string) => {
     setIsUploadingImage(true);
     const formData = new FormData();
@@ -265,7 +187,6 @@ const SlideshowPage = () => {
           )
         );
         
-        // Update opened collection if it's the same collection
         if (openedCollection?.id === collectionId) {
           setOpenedCollection(prev => prev ? { 
             ...prev, 
@@ -275,7 +196,6 @@ const SlideshowPage = () => {
         
         return newImage;
       } else {
-        // Handle error response
         const errorData = await response.json();
         console.error('Upload failed:', errorData.message);
         alert(`Upload failed: ${errorData.message || 'Unknown error'}`);
@@ -287,31 +207,17 @@ const SlideshowPage = () => {
     }
   };
 
-  // Open collection detail view
-  const openCollection = (collection: ImageCollection) => {
-    setOpenedCollection(collection);
-  };
-
-  // Close collection detail view
-  const closeCollection = () => {
-    setOpenedCollection(null);
-  };
-
-  // Generate AI image
-  const generateAIImage = async () => {
-    if (!imagePrompt.trim()) return;
-    
+  const generateAIImage = async (prompt: string) => {
     setIsLoading(true);
     try {
       const response = await fetch('/api/slideshow/generate-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: imagePrompt }),
+        body: JSON.stringify({ prompt }),
       });
       
       if (response.ok) {
         const generatedImage = await response.json();
-        // Add to a default "AI Generated" collection or first collection
         if (userCollections.length > 0) {
           const collection = userCollections[0];
           setUserCollections(collections =>
@@ -322,7 +228,6 @@ const SlideshowPage = () => {
             )
           );
         }
-        setImagePrompt('');
       }
     } catch (error) {
       console.error('Failed to generate image:', error);
@@ -331,9 +236,11 @@ const SlideshowPage = () => {
     }
   };
 
-  // Add slide to current slideshow
   const addSlide = async (imageUrl: string, text: string = '') => {
     if (!currentSlideshow) return;
+    
+    // Create initial text element if text is provided
+    const textElements = text ? [createDefaultTextElement(text)] : [];
     
     try {
       const response = await fetch('/api/slideshow/slides', {
@@ -342,7 +249,7 @@ const SlideshowPage = () => {
         body: JSON.stringify({
           slideshowId: currentSlideshow.id,
           imageUrl,
-          text,
+          textElements,
           order: slides.length,
         }),
       });
@@ -356,21 +263,23 @@ const SlideshowPage = () => {
     }
   };
 
-  // Update slide text
   const updateSlideText = async (slideId: string, text: string) => {
     try {
+      // Create or update the first text element with the new text
+      const textElements: TextElement[] = text ? [createDefaultTextElement(text)] : [];
+
       const response = await fetch(`/api/slideshow/slides/${slideId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ textElements }),
       });
       
       if (response.ok) {
         setSlides(slides.map(slide =>
-          slide.id === slideId ? { ...slide, text } : slide
+          slide.id === slideId ? { ...slide, textElements } : slide
         ));
         if (selectedSlide?.id === slideId) {
-          setSelectedSlide({ ...selectedSlide, text });
+          setSelectedSlide({ ...selectedSlide, textElements });
         }
       }
     } catch (error) {
@@ -378,7 +287,6 @@ const SlideshowPage = () => {
     }
   };
 
-  // Delete slide
   const deleteSlide = async (slideId: string) => {
     try {
       const response = await fetch(`/api/slideshow/slides/${slideId}`, {
@@ -396,14 +304,15 @@ const SlideshowPage = () => {
     }
   };
 
-  // Load slideshow with slides
   const loadSlideshow = async (slideshowId: string) => {
     try {
       const response = await fetch(`/api/slideshow/${slideshowId}`);
       if (response.ok) {
         const slideshow = await response.json();
         setCurrentSlideshow(slideshow);
-        setSlides(slideshow.slides || []);
+        // Migrate slides to new format for backward compatibility
+        const migratedSlides = migrateSlidesToNewFormat(slideshow.slides || []);
+        setSlides(migratedSlides);
         setActiveTab('editor');
       }
     } catch (error) {
@@ -411,9 +320,153 @@ const SlideshowPage = () => {
     }
   };
 
+  // Event Handlers
+  const handleDeleteCollection = (collection: ImageCollection) => {
+    setCollectionToDelete(collection);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handlePreviewSlideshow = (slideshow: Slideshow) => {
+    setCurrentSlideshow(slideshow);
+    setSlideshowPreview(true);
+  };
+
+  const openCollection = (collection: ImageCollection) => {
+    setOpenedCollection(collection);
+  };
+
+  const closeCollection = () => {
+    setOpenedCollection(null);
+  };
+
+  // Phase 1 Editor Handlers using Zustand Store
+  const handleSelectSlide = (slide: Slide) => {
+    setSelectedSlide(slide);
+    setSelectedTextElement(null);
+  };
+
+  const handleAddSlideFromEditor = async () => {
+    // If no slideshow exists, create one first
+    if (!currentSlideshow) {
+      const title = `Slideshow ${slideshows.length + 1}`;
+      await createSlideshow(title);
+      return;
+    }
+    // Open image picker modal instead of switching tabs
+    setIsImagePickerModalOpen(true);
+  };
+
+  const handleAddTextElement = () => {
+    if (!selectedSlide) return;
+    
+    const newTextElement: TextElement = {
+      id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      text: 'New text element',
+      position: { x: 20, y: 30 },
+      size: { width: 60, height: 10 },
+      fontFamily: 'Arial',
+      fontSize: 18,
+      color: '#FFFFFF',
+      zIndex: 1
+    };
+
+    const updatedSlide = {
+      ...selectedSlide,
+      textElements: [...(selectedSlide.textElements || []), newTextElement]
+    };
+
+    setSlides(prev => prev.map(slide => 
+      slide.id === selectedSlide.id ? updatedSlide : slide
+    ));
+    setSelectedSlide(updatedSlide);
+    setSelectedTextElement(newTextElement);
+  };
+
+  const handleUpdateTextElement = (textElement: TextElement) => {
+    if (!selectedSlide) return;
+    
+    const updatedSlide = {
+      ...selectedSlide,
+      textElements: selectedSlide.textElements.map(el =>
+        el.id === textElement.id ? textElement : el
+      )
+    };
+
+    setSlides(prev => prev.map(slide => 
+      slide.id === selectedSlide.id ? updatedSlide : slide
+    ));
+    setSelectedSlide(updatedSlide);
+    setSelectedTextElement(textElement);
+
+    // Auto-save changes to backend
+    updateSlideTextElements(selectedSlide.id, updatedSlide.textElements);
+  };
+
+  const handleDeleteTextElement = (textElementId: string) => {
+    if (!selectedSlide) return;
+    
+    const updatedSlide = {
+      ...selectedSlide,
+      textElements: selectedSlide.textElements.filter(el => el.id !== textElementId)
+    };
+
+    setSlides(prev => prev.map(slide => 
+      slide.id === selectedSlide.id ? updatedSlide : slide
+    ));
+    setSelectedSlide(updatedSlide);
+    setSelectedTextElement(null);
+
+    // Auto-save changes to backend
+    updateSlideTextElements(selectedSlide.id, updatedSlide.textElements);
+  };
+
+  const handleReorderSlides = async (reorderedSlides: Slide[]) => {
+    setSlides(reorderedSlides);
+    
+    // Update backend with new order
+    try {
+      const response = await fetch('/api/slideshow/slides', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slideshowId: currentSlideshow?.id,
+          slides: reorderedSlides.map(slide => ({
+            id: slide.id,
+            order: slide.order,
+            textElements: slide.textElements,
+            imageUrl: slide.imageUrl
+          }))
+        }),
+      });
+      
+      if (!response.ok) {
+        console.error('Failed to update slide order');
+      }
+    } catch (error) {
+      console.error('Failed to update slide order:', error);
+    }
+  };
+
+  // Helper function to update slide text elements
+  const updateSlideTextElements = async (slideId: string, textElements: TextElement[]) => {
+    try {
+      const response = await fetch(`/api/slideshow/slides/${slideId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ textElements }),
+      });
+      
+      if (!response.ok) {
+        console.error('Failed to auto-save text elements');
+      }
+    } catch (error) {
+      console.error('Failed to auto-save text elements:', error);
+    }
+  };
+
+  // Initialize data
   useEffect(() => {
     loadSlideshows();
-    // Load collections with error handling
     loadCollections().catch((error) => {
       console.error('Error in loadCollections useEffect:', error);
       setUserCollections([]);
@@ -438,657 +491,114 @@ const SlideshowPage = () => {
 
           {/* My Slideshows Tab */}
           <TabsContent value="my-slideshows" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Create New Slideshow</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Slideshow title..."
-                    value={newSlideshowTitle}
-                    onChange={(e) => setNewSlideshowTitle(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && createSlideshow()}
-                  />
-                  <Button onClick={createSlideshow} disabled={isLoading}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-                                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-               {slideshows && slideshows.length > 0 ? slideshows.map((slideshow) => (
-                 <Card key={slideshow.id} className="cursor-pointer hover:shadow-lg transition-shadow">
-                   <CardContent className="p-4">
-                     <h3 className="font-semibold text-lg mb-2">{slideshow.title}</h3>
-                     <p className="text-sm text-gray-600 mb-4">
-                       {slideshow.slides?.length || 0} slides • Created {new Date(slideshow.createdAt).toLocaleDateString()}
-                     </p>
-                     <div className="flex gap-2">
-                       <Button
-                         variant="outline"
-                         size="sm"
-                         onClick={() => loadSlideshow(slideshow.id)}
-                       >
-                         <Edit3 className="w-4 h-4 mr-2" />
-                         Edit
-                       </Button>
-                       <Button
-                         variant="outline"
-                         size="sm"
-                         onClick={() => {
-                           setCurrentSlideshow(slideshow);
-                           setSlideshowPreview(true);
-                         }}
-                       >
-                         <Play className="w-4 h-4 mr-2" />
-                         Preview
-                       </Button>
-                     </div>
-                   </CardContent>
-                 </Card>
-               )) : (
-                 <div className="col-span-full text-center py-12">
-                   <ImageIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                   <h3 className="text-lg font-semibold mb-2">No Slideshows Yet</h3>
-                   <p className="text-gray-600">Create your first slideshow to get started!</p>
-                 </div>
-               )}
-            </div>
+            <SlideshowGrid
+              slideshows={slideshows}
+              onCreateSlideshow={createSlideshow}
+              onLoadSlideshow={loadSlideshow}
+              onPreviewSlideshow={handlePreviewSlideshow}
+              isLoading={isLoading}
+            />
           </TabsContent>
 
-          {/* Editor Tab */}
-          <TabsContent value="editor" className="space-y-4">
-            {currentSlideshow ? (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Slides Panel */}
-                <div className="lg:col-span-1">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center justify-between">
-                        <span>Slides ({slides.length})</span>
-                        <Button
-                          size="sm"
-                          onClick={() => setActiveTab('images')}
-                        >
-                          <Plus className="w-4 h-4 mr-2" />
-                          Add
-                        </Button>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                                                                    <div className="space-y-2 max-h-96 overflow-y-auto">
-                         {slides && slides.length > 0 ? slides.map((slide, index) => (
-                           <div
-                             key={slide.id}
-                             className={`border rounded-lg p-3 cursor-pointer transition-colors ${
-                               selectedSlide?.id === slide.id 
-                                 ? 'border-blue-500 bg-blue-50' 
-                                 : 'border-gray-200 hover:border-gray-300'
-                             }`}
-                             onClick={() => setSelectedSlide(slide)}
-                           >
-                             <div className="flex items-center gap-3">
-                               <div className="w-12 h-8 bg-gray-200 rounded overflow-hidden">
-                                 <img
-                                   src={slide.imageUrl}
-                                   alt={`Slide ${index + 1}`}
-                                   className="w-full h-full object-cover"
-                                 />
-                               </div>
-                               <div className="flex-1 min-w-0">
-                                 <p className="text-sm font-medium">Slide {index + 1}</p>
-                                 <p className="text-xs text-gray-500 truncate">
-                                   {slide.text || 'No text'}
-                                 </p>
-                               </div>
-                               <Button
-                                 variant="ghost"
-                                 size="sm"
-                                 onClick={(e) => {
-                                   e.stopPropagation();
-                                   deleteSlide(slide.id);
-                                 }}
-                               >
-                                 <Trash2 className="w-4 h-4 text-red-500" />
-                               </Button>
-                             </div>
-                           </div>
-                         )) : (
-                           <div className="text-center py-8">
-                             <p className="text-gray-500">No slides yet. Go to Images tab to add slides!</p>
-                           </div>
-                         )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Preview Panel */}
-                <div className="lg:col-span-1">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Preview</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {selectedSlide ? (
-                        <div className="space-y-4">
-                          <div className="relative aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden">
-                            <img
-                              src={selectedSlide.imageUrl}
-                              alt="Slide preview"
-                              className="w-full h-full object-cover"
-                            />
-                            {selectedSlide.text && (
-                              <div className="absolute inset-0 flex items-center justify-center p-4">
-                                <div className="bg-black bg-opacity-50 text-white p-3 rounded-lg text-center max-w-full">
-                                  <p className="text-sm font-medium break-words">
-                                    {selectedSlide.text}
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="aspect-[4/3] bg-gray-100 rounded-lg flex items-center justify-center">
-                          <p className="text-gray-500">Select a slide to preview</p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Text Editor Panel */}
-                <div className="lg:col-span-1">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Text Overlay</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {selectedSlide ? (
-                        <div className="space-y-4">
-                          <div>
-                            <Label htmlFor="slide-text">Text Content</Label>
-                            <Textarea
-                              id="slide-text"
-                              placeholder="Enter text for this slide..."
-                              value={selectedSlide.text}
-                              onChange={(e) => {
-                                const newText = e.target.value;
-                                setSelectedSlide({ ...selectedSlide, text: newText });
-                              }}
-                              onBlur={() => updateSlideText(selectedSlide.id, selectedSlide.text)}
-                              rows={4}
-                            />
-                          </div>
-                          <Button
-                            onClick={() => updateSlideText(selectedSlide.id, selectedSlide.text)}
-                            className="w-full"
-                          >
-                            <Save className="w-4 h-4 mr-2" />
-                            Save Text
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="text-center py-8">
-                          <Type className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                          <p className="text-gray-500">Select a slide to edit text</p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-            ) : (
-              <Card>
-                <CardContent className="text-center py-12">
-                  <ImageIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No Slideshow Selected</h3>
-                  <p className="text-gray-600 mb-4">Create a new slideshow or select an existing one to start editing</p>
-                  <Button onClick={() => setActiveTab('my-slideshows')}>
-                    View My Slideshows
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
+          {/* Editor Tab - Phase 1 Implementation */}
+          <TabsContent value="editor" className="h-[calc(100vh-12rem)]">
+            <SlideshowEditorLayout
+              leftPanel={
+                <SlideStrip
+                  slides={slides}
+                  selectedSlideId={selectedSlide?.id || null}
+                  onSelectSlide={handleSelectSlide}
+                  onDeleteSlide={deleteSlide}
+                  onAddSlide={handleAddSlideFromEditor}
+                  onReorderSlides={handleReorderSlides}
+                />
+              }
+              centerPanel={
+                <EditingCanvas
+                  selectedSlide={selectedSlide}
+                  selectedTextElement={selectedTextElement}
+                  onAddTextElement={handleAddTextElement}
+                  onSelectTextElement={setSelectedTextElement}
+                  onUpdateTextElement={handleUpdateTextElement}
+                  onDeleteTextElement={handleDeleteTextElement}
+                />
+              }
+              rightPanel={
+                <StylingToolbar
+                  selectedTextElement={selectedTextElement}
+                  currentSlideshow={currentSlideshow}
+                  onUpdateTextElement={handleUpdateTextElement}
+                  onAddTextElement={handleAddTextElement}
+                />
+              }
+            />
           </TabsContent>
 
           {/* Images Tab */}
-          <TabsContent value="images" className="space-y-4">
+          <TabsContent value="images" className="space-y-4 space-x-4">
             {openedCollection ? (
-              /* Collection Detail View */
-              <div className="space-y-4">
-                {/* Breadcrumb Navigation */}
-                <div className="flex items-center gap-2 text-sm cursor-pointer">
-                  <button 
-                    onClick={closeCollection}
-                    className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                    Images
-                  </button>
-                  <ChevronRight className="w-4 h-4 text-gray-400" />
-                  <span className="text-gray-900 font-medium">{openedCollection.name}</span>
-                </div>
-
-                {/* Collection Header */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold">{openedCollection.name}</h2>
-                    <p className="text-gray-600 mt-1">
-                      {openedCollection.images?.length || 0} images in this collection
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <label className="cursor-pointer">
-                      <input
-                        type="file"
-                        accept="image/*,image/gif"
-                        multiple
-                        className="hidden"
-                        onChange={(e) => {
-                          const files = Array.from(e.target.files || []);
-                          files.forEach(file => uploadImage(file, openedCollection.id));
-                        }}
-                        disabled={isUploadingImage}
-                      />
-                      <Button disabled={isUploadingImage}>
-                        {isUploadingImage ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Uploading...
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="w-4 h-4 mr-2" />
-                            Upload Images
-                          </>
-                        )}
-                      </Button>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Images Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-                  {openedCollection.images && openedCollection.images.length > 0 ? (
-                    openedCollection.images.map((image) => (
-                      <div key={image.id} className="group relative aspect-square">
-                        <div className="relative w-full h-full bg-gray-100 rounded-lg overflow-hidden border border-gray-200 hover:shadow-md transition-shadow cursor-pointer">
-                          <img
-                            src={image.url}
-                            alt="Collection image"
-                            className="w-full h-full object-cover"
-                            loading="lazy"
-                          />
-                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                              {currentSlideshow && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => addSlide(image.url)}
-                                  className="bg-white text-black hover:bg-gray-100"
-                                >
-                                  <Plus className="w-4 h-4 mr-1" />
-                                  Add to Slideshow
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="col-span-full">
-                      <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg">
-                        <ImageIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-lg font-semibold mb-2">No Images Yet</h3>
-                        <p className="text-gray-600 mb-4">Upload your first images to this collection!</p>
-                        <label className="cursor-pointer inline-block">
-                          <input
-                            type="file"
-                            accept="image/*,image/gif"
-                            multiple
-                            className="hidden"
-                            onChange={(e) => {
-                              const files = Array.from(e.target.files || []);
-                              files.forEach(file => uploadImage(file, openedCollection.id));
-                            }}
-                            disabled={isUploadingImage}
-                          />
-                          <Button disabled={isUploadingImage}>
-                            {isUploadingImage ? (
-                              <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Uploading...
-                              </>
-                            ) : (
-                              <>
-                                <Upload className="w-4 h-4 mr-2" />
-                                Upload Images
-                              </>
-                            )}
-                          </Button>
-                        </label>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <CollectionDetail
+                collection={openedCollection}
+                currentSlideshow={currentSlideshow}
+                isUploadingImage={isUploadingImage}
+                onClose={closeCollection}
+                onUploadImage={uploadImage}
+                onAddSlide={addSlide}
+              />
             ) : (
-              /* Collections Grid View */
-              <div className="space-y-4">
-                {/* Collection Management Header */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold">My Image Collections</h2>
-                    <p className="text-gray-600 mt-1">Organize your images into collections</p>
-                  </div>
-                  <Button onClick={() => setIsCreateCollectionModalOpen(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    New Collection
-                  </Button>
-                </div>
-
-            {/* Collections Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {isLoadingCollections ? (
-                // Show skeleton loading state
-                <>
-                  {/* All Images Skeleton */}
-                  <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                    <CardContent className="p-4 text-center">
-                      <div className="w-16 h-16 bg-gray-200 rounded-lg mx-auto mb-3 animate-pulse"></div>
-                      <div className="w-20 h-4 bg-gray-200 rounded animate-pulse mb-1 mx-auto"></div>
-                      <div className="w-16 h-3 bg-gray-200 rounded animate-pulse mx-auto"></div>
-                    </CardContent>
-                  </Card>
-                  
-                  {/* Collection Skeletons */}
-                  {[...Array(4)].map((_, index) => (
-                    <CollectionSkeleton key={index} />
-                  ))}
-                </>
-              ) : (
-                <>
-                  {/* All Images Collection */}
-                  <Card 
-                    className="cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => {
-                      // Create a virtual "All Images" collection
-                      const allImages = userCollections.flatMap(collection => collection.images || []);
-                      openCollection({
-                        id: 'all-images',
-                        name: 'All Images',
-                        images: allImages
-                      });
-                    }}
-                  >
-                    <CardContent className="p-4 text-center">
-                      <div className="w-16 h-16 bg-gray-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
-                        <ImageIcon className="w-8 h-8 text-gray-400" />
-                      </div>
-                      <h3 className="font-medium mb-1">All Images</h3>
-                      <p className="text-sm text-gray-500">
-                        {userCollections.reduce((total, collection) => total + (collection.images?.length || 0), 0)} images
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  {/* User Collections */}
-                  {userCollections && userCollections.length > 0 ? userCollections.map((collection) => (
-                    <Card key={collection.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                      <CardContent className="p-4">
-                        <div 
-                          className="flex items-center justify-between mb-3"
-                          onClick={() => openCollection(collection)}
-                        >
-                          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                            <ImageIcon className="w-5 h-5 text-gray-400" />
-                          </div>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="text-red-500 hover:text-red-700"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteCollection(collection);
-                            }}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                        <div onClick={() => openCollection(collection)}>
-                          <h3 className="font-medium mb-1">{collection.name}</h3>
-                          <p className="text-sm text-gray-500 mb-3">
-                            {collection.images?.length || 0} images
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <div className="flex-1">
-                            <input
-                              id={`upload-${collection.id}`}
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  uploadImage(file, collection.id);
-                                  // Reset the input
-                                  e.target.value = '';
-                                }
-                              }}
-                            />
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className="w-full"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const input = document.getElementById(`upload-${collection.id}`) as HTMLInputElement;
-                                if (input) input.click();
-                              }}
-                              disabled={isUploadingImage}
-                            >
-                              {isUploadingImage ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                  Uploading...
-                                </>
-                              ) : (
-                                <>
-                                  <Upload className="w-4 h-4 mr-2" />
-                                  Upload
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )) : null}
-
-                  {/* Add New Collection Card */}
-                  <Card 
-                    className="cursor-pointer hover:shadow-md transition-shadow border-dashed border-2"
-                    onClick={() => setIsCreateCollectionModalOpen(true)}
-                  >
-                    <CardContent className="p-4 text-center">
-                      <div className="w-16 h-16 bg-gray-50 rounded-lg mx-auto mb-3 flex items-center justify-center">
-                        <Plus className="w-8 h-8 text-gray-400" />
-                      </div>
-                      <h3 className="font-medium mb-1">Create Collection</h3>
-                      <p className="text-sm text-gray-500">Add a new image collection</p>
-                    </CardContent>
-                  </Card>
-                </>
-              )}
-            </div>
-
-                {/* No Collections State */}
-                {!isLoadingCollections && userCollections.length === 0 && (
-                  <div className="text-center py-12">
-                    <ImageIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No Collections Yet</h3>
-                    <p className="text-gray-600 mb-4">Create your first collection to organize your images!</p>
-                    <Button onClick={() => setIsCreateCollectionModalOpen(true)}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create First Collection
-                    </Button>
-                  </div>
-                )}
-              </div>
+              <CollectionGrid
+                userCollections={userCollections}
+                isLoadingCollections={isLoadingCollections}
+                isUploadingImage={isUploadingImage}
+                onOpenCollection={openCollection}
+                onCreateCollection={() => setIsCreateCollectionModalOpen(true)}
+                onDeleteCollection={handleDeleteCollection}
+                onUploadImage={uploadImage}
+              />
             )}
           </TabsContent>
 
           {/* AI Generate Tab */}
           <TabsContent value="ai-generate" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Sparkles className="w-5 h-5 mr-2" />
-                  AI Image Generator
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="image-prompt">Describe the image you want</Label>
-                    <Textarea
-                      id="image-prompt"
-                      placeholder="A beautiful sunset over mountains..."
-                      value={imagePrompt}
-                      onChange={(e) => setImagePrompt(e.target.value)}
-                      rows={3}
-                    />
-                  </div>
-                  <Button 
-                    onClick={generateAIImage} 
-                    disabled={isLoading || !imagePrompt.trim()}
-                    className="w-full"
-                  >
-                    {isLoading ? 'Generating...' : 'Generate Image'}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <AIImageGenerator
+              onGenerateImage={generateAIImage}
+              isLoading={isLoading}
+            />
           </TabsContent>
         </Tabs>
 
-        {/* Create Collection Modal */}
-        <Dialog open={isCreateCollectionModalOpen} onOpenChange={setIsCreateCollectionModalOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Create New Collection</DialogTitle>
-              <DialogDescription>
-                Organize your images by creating a new collection.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-5">
-              <div className='flex flex-col gap-2'>
-                <Label htmlFor="collection-name" className='text-sm font-medium'>Name</Label>
-                <Input
-                  id="collection-name"
-                  placeholder="Collection #1"
-                  value={newCollectionName}
-                  onChange={(e) => setNewCollectionName(e.target.value)}
-                  disabled={isCreatingCollection}
-                />
-              </div>
-              
-              <div className='flex flex-col gap-2'>
-                <Label htmlFor="collection-description" className='text-sm font-medium'>Description (optional)</Label>
-                <Textarea
-                  id="collection-description"
-                  placeholder="Enter collection description"
-                  value={newCollectionDescription}
-                  onChange={(e) => setNewCollectionDescription(e.target.value)}
-                  disabled={isCreatingCollection}
-                  rows={3}
-                />
-              </div>
-            </div>
+        {/* Modals */}
+        <CreateCollectionModal
+          isOpen={isCreateCollectionModalOpen}
+          onClose={() => setIsCreateCollectionModalOpen(false)}
+          onCreateCollection={createCollection}
+          isCreating={isCreatingCollection}
+        />
 
-            <DialogFooter className="gap-2">
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setIsCreateCollectionModalOpen(false);
-                  setNewCollectionName('');
-                  setNewCollectionDescription('');
-                }}
-                disabled={isCreatingCollection}
-              >
-                Cancel
-              </Button>
-              <Button 
-                onClick={createCollection}
-                disabled={isCreatingCollection || !newCollectionName.trim()}
-                className="min-w-[120px]"
-              >
-                {isCreatingCollection ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  'Create Collection'
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <DeleteCollectionModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => {
+            setIsDeleteModalOpen(false);
+            setCollectionToDelete(null);
+          }}
+          collectionToDelete={collectionToDelete}
+          onDeleteCollection={deleteCollection}
+          isDeleting={isDeletingCollection}
+        />
 
-        {/* Delete Collection Confirmation Modal */}
-        <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-red-600">
-                <Trash2 className="w-5 h-5" />
-                Delete Collection
-              </DialogTitle>
-              <DialogDescription>
-                Are you sure you want to delete "{collectionToDelete?.name}"? This action is irreversible and will permanently delete all images in this collection.
-              </DialogDescription>
-            </DialogHeader>
-
-            <DialogFooter className="gap-2">
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setIsDeleteModalOpen(false);
-                  setCollectionToDelete(null);
-                }}
-                disabled={isDeletingCollection}
-              >
-                Cancel
-              </Button>
-              <Button 
-                variant="destructive"
-                onClick={() => collectionToDelete && deleteCollection(collectionToDelete.id)}
-                disabled={isDeletingCollection}
-                className="min-w-[120px]"
-              >
-                {isDeletingCollection ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Deleting...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Delete Forever
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <ImagePickerModal
+          isOpen={isImagePickerModalOpen}
+          onClose={() => setIsImagePickerModalOpen(false)}
+          userCollections={userCollections}
+          currentSlideshow={currentSlideshow}
+          isUploadingImage={isUploadingImage}
+          onUploadImage={uploadImage}
+          onAddSlide={addSlide}
+          onCreateCollection={() => {
+            setIsImagePickerModalOpen(false);
+            setIsCreateCollectionModalOpen(true);
+          }}
+        />
       </div>
     </div>
   );

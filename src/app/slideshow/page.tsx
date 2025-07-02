@@ -91,6 +91,9 @@ const SlideshowPage = () => {
   const [isLoadingCollections, setIsLoadingCollections] = useState(true);
   const [openedCollection, setOpenedCollection] = useState<ImageCollection | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [collectionToDelete, setCollectionToDelete] = useState<ImageCollection | null>(null);
+  const [isDeletingCollection, setIsDeletingCollection] = useState(false);
 
   // Load user's slideshows
   const loadSlideshows = async () => {
@@ -202,6 +205,39 @@ const SlideshowPage = () => {
     } finally {
       setIsCreatingCollection(false);
     }
+  };
+
+  // Delete collection
+  const deleteCollection = async (collectionId: string) => {
+    setIsDeletingCollection(true);
+    try {
+      const response = await fetch(`/api/slideshow/collections/${collectionId}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        setUserCollections(collections => 
+          collections.filter(collection => collection.id !== collectionId)
+        );
+        setIsDeleteModalOpen(false);
+        setCollectionToDelete(null);
+        
+        // If the deleted collection was currently opened, close it
+        if (openedCollection?.id === collectionId) {
+          setOpenedCollection(null);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to delete collection:', error);
+    } finally {
+      setIsDeletingCollection(false);
+    }
+  };
+
+  // Handle delete collection confirmation
+  const handleDeleteCollection = (collection: ImageCollection) => {
+    setCollectionToDelete(collection);
+    setIsDeleteModalOpen(true);
   };
 
   // Upload image to collection
@@ -810,7 +846,10 @@ const SlideshowPage = () => {
                             variant="ghost" 
                             size="sm" 
                             className="text-red-500 hover:text-red-700"
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteCollection(collection);
+                            }}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -973,6 +1012,52 @@ const SlideshowPage = () => {
                   </>
                 ) : (
                   'Create Collection'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Collection Confirmation Modal */}
+        <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-red-600">
+                <Trash2 className="w-5 h-5" />
+                Delete Collection
+              </DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete "{collectionToDelete?.name}"? This action is irreversible and will permanently delete all images in this collection.
+              </DialogDescription>
+            </DialogHeader>
+
+            <DialogFooter className="gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setIsDeleteModalOpen(false);
+                  setCollectionToDelete(null);
+                }}
+                disabled={isDeletingCollection}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive"
+                onClick={() => collectionToDelete && deleteCollection(collectionToDelete.id)}
+                disabled={isDeletingCollection}
+                className="min-w-[120px]"
+              >
+                {isDeletingCollection ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Forever
+                  </>
                 )}
               </Button>
             </DialogFooter>

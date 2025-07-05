@@ -53,8 +53,14 @@ const SlideshowPage = () => {
     try {
       const response = await fetch('/api/slideshow');
       if (response.ok) {
-        const data = await response.json();
-        setSlideshows(Array.isArray(data) ? data : []);
+        const result = await response.json();
+        if (result.success && result.slideshows) {
+          console.log('Successfully loaded slideshows:', result.slideshows);
+          setSlideshows(result.slideshows);
+        } else {
+          console.error('Failed to load slideshows: Invalid response format', result);
+          setSlideshows([]);
+        }
       } else {
         console.error('Failed to load slideshows:', response.status);
         if (response.status === 401) {
@@ -74,9 +80,14 @@ const SlideshowPage = () => {
     try {
       const response = await fetch('/api/slideshow/collections?includeImages=true');
       if (response.ok) {
-        const data = await response.json();
-        const collections = data.success ? data.collections : data;
-        setUserCollections(Array.isArray(collections) ? collections : []);
+        const result = await response.json();
+        if (result.success && result.collections) {
+          console.log('Successfully loaded collections:', result.collections);
+          setUserCollections(result.collections);
+        } else {
+          console.error('Failed to load collections: Invalid response format', result);
+          setUserCollections([]);
+        }
       } else {
         console.error('Failed to load collections:', response.status);
         if (response.status === 401) {
@@ -93,7 +104,7 @@ const SlideshowPage = () => {
     }
   };
 
-  const createSlideshow = async (title: string) => {
+  const createSlideshow = async (title: string, switchToEditor: boolean = true) => {
     setIsLoading(true);
     try {
       const response = await fetch('/api/slideshow', {
@@ -103,11 +114,21 @@ const SlideshowPage = () => {
       });
       
       if (response.ok) {
-        const newSlideshow = await response.json();
-        setSlideshows([...slideshows, newSlideshow]);
-        setCurrentSlideshow(newSlideshow);
-        setSlides([]);
-        setActiveTab('editor');
+        const result = await response.json();
+        if (result.success && result.slideshow) {
+          console.log('Successfully created slideshow:', result.slideshow);
+          setSlideshows([...slideshows, result.slideshow]);
+          setCurrentSlideshow(result.slideshow);
+          setSlides([]);
+          if (switchToEditor) {
+            setActiveTab('editor');
+          }
+        } else {
+          console.error('Failed to create slideshow: Invalid response format', result);
+        }
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to create slideshow:', errorData.message);
       }
     } catch (error) {
       console.error('Failed to create slideshow:', error);
@@ -237,26 +258,50 @@ const SlideshowPage = () => {
   };
 
   const addSlide = async (imageUrl: string, text: string = '') => {
-    if (!currentSlideshow) return;
+    if (!currentSlideshow) {
+      console.error('No current slideshow available');
+      return;
+    }
+    
+    console.log('Adding slide with imageUrl:', imageUrl);
+    console.log('Current slideshow:', currentSlideshow);
     
     // Create initial text element if text is provided
     const textElements = text ? [createDefaultTextElement(text)] : [];
     
     try {
+      const requestBody = {
+        slideshowId: currentSlideshow.id,
+        imageUrl,
+        textElements,
+        order: slides.length,
+      };
+      
+      console.log('Sending request to add slide:', requestBody);
+      
       const response = await fetch('/api/slideshow/slides', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          slideshowId: currentSlideshow.id,
-          imageUrl,
-          textElements,
-          order: slides.length,
-        }),
+        body: JSON.stringify(requestBody),
       });
       
+      console.log('Response status:', response.status);
+      
       if (response.ok) {
-        const newSlide = await response.json();
-        setSlides([...slides, newSlide]);
+        const result = await response.json();
+        console.log('Response data:', result);
+        
+        if (result.success && result.slide) {
+          console.log('Successfully added slide:', result.slide);
+          setSlides([...slides, result.slide]);
+          // Auto-select the newly added slide
+          setSelectedSlide(result.slide);
+        } else {
+          console.error('Failed to add slide: Invalid response format', result);
+        }
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to add slide:', errorData.message);
       }
     } catch (error) {
       console.error('Failed to add slide:', error);
@@ -309,11 +354,15 @@ const SlideshowPage = () => {
       const response = await fetch(`/api/slideshow/${slideshowId}`);
       if (response.ok) {
         const slideshow = await response.json();
+        console.log('Successfully loaded slideshow:', slideshow);
         setCurrentSlideshow(slideshow);
         // Migrate slides to new format for backward compatibility
         const migratedSlides = migrateSlidesToNewFormat(slideshow.slides || []);
         setSlides(migratedSlides);
         setActiveTab('editor');
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to load slideshow:', errorData.message);
       }
     } catch (error) {
       console.error('Failed to load slideshow:', error);
@@ -341,18 +390,25 @@ const SlideshowPage = () => {
 
   // Phase 1 Editor Handlers using Zustand Store
   const handleSelectSlide = (slide: Slide) => {
+    console.log('Selecting slide:', slide);
     setSelectedSlide(slide);
     setSelectedTextElement(null);
   };
 
   const handleAddSlideFromEditor = async () => {
+    console.log('handleAddSlideFromEditor called, currentSlideshow:', currentSlideshow);
     // If no slideshow exists, create one first
     if (!currentSlideshow) {
       const title = `Slideshow ${slideshows.length + 1}`;
-      await createSlideshow(title);
+      console.log('Creating new slideshow:', title);
+      await createSlideshow(title, false); // Don't switch tabs since we're already in editor
+      // After creating slideshow, open the image picker modal
+      console.log('Opening image picker modal after slideshow creation');
+      setIsImagePickerModalOpen(true);
       return;
     }
     // Open image picker modal instead of switching tabs
+    console.log('Opening image picker modal');
     setIsImagePickerModalOpen(true);
   };
 

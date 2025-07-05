@@ -11,7 +11,8 @@ Config.setCodec('h264');
 
 // AWS Lambda configuration (if using Lambda rendering)
 if (process.env.NODE_ENV === 'production') {
-  Config.setImageFormat('jpeg');
+  Config.setVideoImageFormat('jpeg');
+  Config.setStillImageFormat('png');
   Config.setCodec('h264');
   Config.setPixelFormat('yuv420p');
 }

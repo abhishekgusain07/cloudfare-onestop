@@ -23,6 +23,9 @@ export const EditingCanvas = ({
   onUpdateTextElement,
   onDeleteTextElement
 }: EditingCanvasProps) => {
+  console.log('EditingCanvas received selectedSlide:', selectedSlide);
+  console.log('EditingCanvas received selectedTextElement:', selectedTextElement);
+  
   const canvasRef = useRef<HTMLDivElement>(null);
   const [canvasDimensions, setCanvasDimensions] = useState({ width: 800, height: 450 });
 
@@ -112,7 +115,11 @@ export const EditingCanvas = ({
               src={selectedSlide.imageUrl}
               alt={`Slide ${selectedSlide.order + 1}`}
               className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+              onLoad={(e) => {
+                console.log('Image loaded successfully:', selectedSlide.imageUrl);
+              }}
               onError={(e) => {
+                console.error('Image failed to load:', selectedSlide.imageUrl);
                 const target = e.target as HTMLImageElement;
                 target.style.display = 'none';
                 const parent = target.parentElement;

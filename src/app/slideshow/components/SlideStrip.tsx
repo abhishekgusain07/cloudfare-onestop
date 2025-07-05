@@ -146,6 +146,9 @@ export const SlideStrip = ({
   onReorderSlides,
   isLoading = false
 }: SlideStripProps) => {
+  console.log('SlideStrip received slides:', slides);
+  console.log('Selected slide ID:', selectedSlideId);
+  
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -154,6 +157,7 @@ export const SlideStrip = ({
   );
 
   const sortedSlides = slides.sort((a, b) => a.order - b.order);
+  console.log('Sorted slides:', sortedSlides);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;

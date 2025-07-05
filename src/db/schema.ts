@@ -104,6 +104,10 @@ export const screenRatioEnum = pgEnum('screen_ratio', ['1/1', '16/9', '9/16', '4
 export const captionPresetEnum = pgEnum('caption_preset', ['BASIC', 'MODERN', 'MINIMAL'] as [string, string, string]);
 export const captionAlignmentEnum = pgEnum('caption_alignment', ['LEFT', 'CENTER', 'RIGHT'] as [string, string, string]);
 
+// Slideshow enums
+export const slideshowStatusEnum = pgEnum('slideshow_status', ['draft', 'rendering', 'completed', 'failed'] as [string, string, string, string]);
+export const outputFormatEnum = pgEnum('output_format', ['video', 'images'] as [string, string]);
+
 export const videos = pgTable('videos', {
 	id: varchar('id', { length: 36 }).primaryKey(),
 	userId: varchar('user_id', { length: 36 }).notNull(),
@@ -169,6 +173,9 @@ export const slideshows = pgTable('slideshows', {
 	id: text('id').primaryKey(),
 	userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
 	title: text('title').notNull(),
+	status: slideshowStatusEnum('status').notNull().default('draft'),
+	outputFormat: outputFormatEnum('output_format').notNull().default('video'),
+	renderUrl: text('render_url'),
 	createdAt: timestamp('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
 });
@@ -178,7 +185,7 @@ export const slides = pgTable('slides', {
 	slideshowId: text('slideshow_id').notNull().references(() => slideshows.id, { onDelete: 'cascade' }),
 	order: integer('order').notNull(),
 	imageUrl: text('image_url').notNull(),
-	text: text('text'),
+	textElements: jsonb('text_elements').notNull().default('[]'),
 	createdAt: timestamp('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 

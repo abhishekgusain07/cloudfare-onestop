@@ -181,6 +181,7 @@ export const SlideshowEditorDemo = () => {
                 setSelectedTextElement(textElement);
               }
             }}
+            onAddTextElement={handleAddTextElement}
           />
         }
       />

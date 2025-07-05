@@ -13,6 +13,8 @@ interface EditingCanvasProps {
   onSelectTextElement?: (textElement: TextElement) => void;
   onUpdateTextElement?: (textElement: TextElement) => void;
   onDeleteTextElement?: (textElementId: string) => void;
+  slides: Slide[];
+  onSelectSlide: (slide: Slide) => void;
 }
 
 export const EditingCanvas = ({
@@ -21,7 +23,9 @@ export const EditingCanvas = ({
   onAddTextElement,
   onSelectTextElement,
   onUpdateTextElement,
-  onDeleteTextElement
+  onDeleteTextElement,
+  slides,
+  onSelectSlide
 }: EditingCanvasProps) => {
   console.log('EditingCanvas received selectedSlide:', selectedSlide);
   console.log('EditingCanvas received selectedTextElement:', selectedTextElement);
@@ -52,6 +56,19 @@ export const EditingCanvas = ({
       onSelectTextElement?.(null as any);
     }
   };
+
+  // Carousel navigation logic
+  const currentIndex = selectedSlide ? slides.findIndex(s => s.id === selectedSlide.id) : -1;
+  const hasPrev = currentIndex > 0;
+  const hasNext = currentIndex < slides.length - 1 && currentIndex !== -1;
+
+  const goPrev = () => {
+    if (hasPrev) onSelectSlide(slides[currentIndex - 1]);
+  };
+  const goNext = () => {
+    if (hasNext) onSelectSlide(slides[currentIndex + 1]);
+  };
+
   if (!selectedSlide) {
     return (
       <div className="h-full flex flex-col">
@@ -110,6 +127,27 @@ export const EditingCanvas = ({
             className="relative bg-white shadow-lg rounded-lg overflow-hidden max-w-4xl w-full aspect-video"
             onClick={handleCanvasClick}
           >
+            {/* Carousel Arrows */}
+            {hasPrev && (
+              <button
+                className="absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-white bg-opacity-70 hover:bg-opacity-100 rounded-full p-2 shadow"
+                onClick={goPrev}
+                style={{outline: 'none', border: 'none'}}
+                aria-label="Previous slide"
+              >
+                <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+              </button>
+            )}
+            {hasNext && (
+              <button
+                className="absolute right-2 top-1/2 -translate-y-1/2 z-20 bg-white bg-opacity-70 hover:bg-opacity-100 rounded-full p-2 shadow"
+                onClick={goNext}
+                style={{outline: 'none', border: 'none'}}
+                aria-label="Next slide"
+              >
+                <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+              </button>
+            )}
             {/* Background Image */}
             <img
               src={selectedSlide.imageUrl}
@@ -171,6 +209,21 @@ export const EditingCanvas = ({
                   <Type className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                   <p className="text-sm text-gray-600">Click "Add Text" to start adding text elements</p>
                 </div>
+              </div>
+            )}
+
+            {/* Slide Indicators (dots) */}
+            {slides.length > 1 && (
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+                {slides.map((slide, idx) => (
+                  <button
+                    key={slide.id}
+                    className={`w-2.5 h-2.5 rounded-full ${selectedSlide?.id === slide.id ? 'bg-blue-500' : 'bg-gray-300'} transition-colors`}
+                    style={{outline: 'none', border: 'none'}}
+                    onClick={() => onSelectSlide(slide)}
+                    aria-label={`Go to slide ${idx + 1}`}
+                  />
+                ))}
               </div>
             )}
           </div>

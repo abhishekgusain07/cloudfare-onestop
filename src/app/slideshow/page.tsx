@@ -577,6 +577,8 @@ const SlideshowPage = () => {
                   onSelectTextElement={setSelectedTextElement}
                   onUpdateTextElement={handleUpdateTextElement}
                   onDeleteTextElement={handleDeleteTextElement}
+                  slides={slides}
+                  onSelectSlide={handleSelectSlide}
                 />
               }
               rightPanel={

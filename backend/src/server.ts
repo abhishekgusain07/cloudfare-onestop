@@ -2,11 +2,16 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
-import { S3Client, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { S3Client, ListObjectsV2Command, PutObjectCommand } from '@aws-sdk/client-s3';
 import { bundle } from '@remotion/bundler';
 import type { WebpackConfiguration } from '@remotion/bundler';
-import { renderMedia, selectComposition } from '@remotion/renderer';
+import { renderMedia, selectComposition, renderStill } from '@remotion/renderer';
 import dotenv from 'dotenv';
+import archiver from 'archiver';
+import axios from 'axios';
+import { join } from 'path';
+import { tmpdir } from 'os';
+import { writeFileSync, unlinkSync, mkdirSync, existsSync } from 'fs';
 
 // Load environment variables
 dotenv.config();
@@ -463,6 +468,101 @@ app.delete('/render/:renderId', (req: any, res: any) => {
       success: false,
       error: 'Failed to delete render',
     });
+  }
+});
+
+app.post('/export-images', async (req: any, res: any) => {
+  try {
+    const { slides, slideshowId } = req.body;
+    console.log('Received export-images request:', { slideshowId, slidesCount: slides?.length });
+    if (!slides || !Array.isArray(slides) || slides.length === 0 || !slideshowId) {
+      console.error('Missing slides or slideshowId', { slides, slideshowId });
+      return res.status(400).json({ success: false, message: 'Missing slides or slideshowId' });
+    }
+
+    // Remotion project root (dynamic bundle or static build)
+    const bundleLocation = await bundle(
+      path.resolve(__dirname, '../../src/components/remotion/index.ts'),
+      undefined,
+      {
+        webpackOverride: (config) => config,
+      }
+    );
+    console.log('Remotion bundle location:', bundleLocation);
+
+    // Get the VideoConfig for SlideStill ONCE
+    const comp = await selectComposition({
+      serveUrl: bundleLocation,
+      id: 'SlideStill',
+      inputProps: {
+        imageUrl: slides[0]?.imageUrl || '',
+        textElements: slides[0]?.textElements || [],
+      },
+    });
+    console.log('Selected SlideStill composition:', comp);
+
+    // Create a zip archive in memory
+    const archiver = require('archiver');
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    const zipBuffers: Buffer[] = [];
+    archive.on('data', (data: Buffer) => zipBuffers.push(data));
+
+    for (let i = 0; i < slides.length; i++) {
+      const slide = slides[i];
+      const filename = `slide_${i + 1}.png`;
+      console.log(`[Slide ${i + 1}] Processing slide with imageUrl:`, slide.imageUrl);
+      console.log(`[Slide ${i + 1}] TextElements:`, slide.textElements?.length || 0, 'elements');
+      
+      try {
+        // Render PNG with Remotion using the R2 imageUrl directly
+        console.log(`[Slide ${i + 1}] Starting renderStill with props:`, {
+          imageUrl: slide.imageUrl,
+          textElementsCount: slide.textElements?.length || 0
+        });
+        
+        const { buffer } = await renderStill({
+          composition: comp,
+          serveUrl: bundleLocation,
+          inputProps: {
+            imageUrl: slide.imageUrl, // Pass R2 URL directly
+            textElements: slide.textElements || [],
+          },
+          output: null,
+          imageFormat: 'png',
+        });
+        
+        if (buffer) {
+          archive.append(buffer, { name: filename });
+          console.log(`[Slide ${i + 1}] Successfully rendered and added to zip. Buffer size:`, buffer.length);
+        } else {
+          console.error(`[Slide ${i + 1}] Rendered buffer is null!`);
+        }
+      } catch (err) {
+        console.error(`[Slide ${i + 1}] Error rendering still:`, err);
+        console.error(`[Slide ${i + 1}] Failed imageUrl:`, slide.imageUrl);
+      }
+    }
+
+    await archive.finalize();
+    const zipBuffer = Buffer.concat(zipBuffers);
+    console.log('Finalized zip, size:', zipBuffer.length);
+
+    // Upload to R2
+    const r2Key = `slideshows/${slideshowId}/export_${Date.now()}.zip`;
+    await r2.send(new PutObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: r2Key,
+      Body: zipBuffer,
+      ContentType: 'application/zip',
+      ContentLength: zipBuffer.length,
+    }));
+    const publicUrl = `${R2_PUBLIC_URL_BASE}/${r2Key}`;
+    console.log('Uploaded zip to R2:', publicUrl);
+
+    res.json({ success: true, url: publicUrl });
+  } catch (err) {
+    console.error('Export images error:', err);
+    res.status(500).json({ success: false, message: 'Failed to export images' });
   }
 });
 

@@ -24,6 +24,7 @@ import {
   DeleteCollectionModal,
   ImagePickerModal
 } from './components';
+import { RenderControls } from './components/RenderControls';
 
 const SlideshowPage = () => {
   // State management
@@ -47,6 +48,11 @@ const SlideshowPage = () => {
   
   // Phase 1 Editor State
   const [selectedTextElement, setSelectedTextElement] = useState<TextElement | null>(null);
+
+  // New state for RenderControls
+  const [exportStatus, setExportStatus] = useState<'idle' | 'rendering' | 'completed' | 'failed'>('idle');
+  const [renderUrl, setRenderUrl] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   // API Functions
   const loadSlideshows = async () => {
@@ -520,6 +526,36 @@ const SlideshowPage = () => {
     }
   };
 
+  const handleExport = async () => {
+    if (!currentSlideshow) return;
+    setIsExporting(true);
+    setExportStatus('rendering');
+    setRenderUrl(null);
+    try {
+      // POST slides and slideshowId to backend
+      const res = await fetch('http://localhost:3001/export-images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slides,
+          slideshowId: currentSlideshow.id,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.url) {
+        setExportStatus('completed');
+        setRenderUrl(data.url);
+        setIsExporting(false);
+      } else {
+        setExportStatus('failed');
+        setIsExporting(false);
+      }
+    } catch (e) {
+      setExportStatus('failed');
+      setIsExporting(false);
+    }
+  };
+
   // Initialize data
   useEffect(() => {
     loadSlideshows();
@@ -582,12 +618,20 @@ const SlideshowPage = () => {
                 />
               }
               rightPanel={
-                <StylingToolbar
-                  selectedTextElement={selectedTextElement}
-                  currentSlideshow={currentSlideshow}
-                  onUpdateTextElement={handleUpdateTextElement}
-                  onAddTextElement={handleAddTextElement}
-                />
+                <div>
+                  <RenderControls
+                    status={exportStatus}
+                    renderUrl={renderUrl}
+                    onExport={handleExport}
+                    isExporting={isExporting}
+                  />
+                  <StylingToolbar
+                    selectedTextElement={selectedTextElement}
+                    currentSlideshow={currentSlideshow}
+                    onUpdateTextElement={handleUpdateTextElement}
+                    onAddTextElement={handleAddTextElement}
+                  />
+                </div>
               }
             />
           </TabsContent>

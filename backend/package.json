@@ -17,6 +17,9 @@
     "@remotion/bundler": "^4.0.314",
     "@remotion/cli": "^4.0.314",
     "@remotion/renderer": "^4.0.314",
+    "@types/archiver": "^6.0.3",
+    "archiver": "^7.0.1",
+    "axios": "^1.10.0",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0"

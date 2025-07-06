@@ -8,9 +8,11 @@ import { eq, and } from "drizzle-orm";
 // PUT /api/slideshow/slides/[slideId] - Update a single slide
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { slideId: string } }
+  context: { params: Promise<{ slideId: string }> }
 ) {
   try {
+    const { slideId } = await context.params;
+
     // Get the current user's session
     const session = await auth.api.getSession({
       headers: await headers()
@@ -23,7 +25,6 @@ export async function PUT(
       );
     }
 
-    const { slideId } = params;
     const data = await request.json();
 
     // Get the slide and verify ownership through slideshow

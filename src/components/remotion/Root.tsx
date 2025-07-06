@@ -1,6 +1,7 @@
 import React from 'react';
 import { Composition } from 'remotion';
 import { VideoComposition } from './videoComposition';
+import { SlideStillComposition } from './SlideStillComposition';
 
 // Define interface for component props
 interface RemotionRootProps {
@@ -39,24 +40,38 @@ export const RemotionRoot: React.FC<RemotionRootProps> = ({
   const durationInFrames = calculateDuration();
 
   return (
-    <Composition
-      id="VideoComposition"
-      component={VideoComposition as any}
-      durationInFrames={audioDuration * 30 || durationInFrames}
-      fps={30}
-      width={1080}
-      height={1920}
-      defaultProps={{
-        selectedTemplate: '', // No default template - will be set dynamically
-        text: 'Your AI-Generated Video',
-        textPosition: 'bottom',
-        textAlign: 'center',
-        fontSize: 36,
-        textColor: '#FFFFFF',
-        musicVolume: 0.5,
-        musicUrl: undefined,
-        templateUrl: undefined, // Will be set dynamically when video is selected
-      }}
-    />
+    <>
+      <Composition
+        id="VideoComposition"
+        component={VideoComposition as any}
+        durationInFrames={audioDuration * 30 || durationInFrames}
+        fps={30}
+        width={1080}
+        height={1920}
+        defaultProps={{
+          selectedTemplate: '', // No default template - will be set dynamically
+          text: 'Your AI-Generated Video',
+          textPosition: 'bottom',
+          textAlign: 'center',
+          fontSize: 36,
+          textColor: '#FFFFFF',
+          musicVolume: 0.5,
+          musicUrl: undefined,
+          templateUrl: undefined, // Will be set dynamically when video is selected
+        }}
+      />
+      <Composition
+        id="SlideStill"
+        component={SlideStillComposition as any}
+        durationInFrames={1}
+        fps={30}
+        width={1080}
+        height={1920}
+        defaultProps={{
+          imageUrl: '',
+          textElements: [],
+        }}
+      />
+    </>
   );
 };

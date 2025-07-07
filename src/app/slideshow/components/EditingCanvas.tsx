@@ -51,9 +51,14 @@ export const EditingCanvas = ({
   }, [selectedSlide]);
 
   const handleCanvasClick = (e: React.MouseEvent) => {
-    // Only deselect if clicking on the canvas itself, not a text element
-    if (e.target === e.currentTarget) {
-      onSelectTextElement?.(null as any);
+    // Only deselect if clicking on the canvas itself, not a text element or its children
+    const target = e.target as HTMLElement;
+    const canvas = e.currentTarget as HTMLElement;
+    
+    // Check if the click is directly on the canvas or on the image (not on text elements)
+    if (target === canvas || target.tagName === 'IMG') {
+      console.log('Canvas clicked - deselecting text element');
+      onSelectTextElement?.(null!);
     }
   };
 

@@ -126,11 +126,7 @@ export const DraggableTextBox = ({
       disableDragging={isEditing}
     >
       <div
-        className={`relative w-full h-full p-2 cursor-move rounded transition-all ${
-          isSelected 
-            ? 'ring-2 ring-blue-500 ring-opacity-75 bg-blue-50 bg-opacity-20' 
-            : 'hover:ring-1 hover:ring-blue-300 hover:bg-blue-50 hover:bg-opacity-10'
-        }`}
+        className={`relative w-full h-full p-2 cursor-move rounded transition-all hover:ring-2 hover:ring-blue-500 hover:ring-opacity-75 hover:bg-blue-50 hover:bg-opacity-20`}
         onDoubleClick={handleDoubleClick}
         style={{
           fontFamily: textElement.fontFamily,
@@ -161,8 +157,8 @@ export const DraggableTextBox = ({
           </div>
         )}
 
-        {/* Controls - Only show when selected and not editing */}
-        {isSelected && !isEditing && (
+        {/* Controls - Only show on hover and not editing */}
+        {!isEditing && (
           <div className="absolute -top-8 left-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <Button
               variant="secondary"

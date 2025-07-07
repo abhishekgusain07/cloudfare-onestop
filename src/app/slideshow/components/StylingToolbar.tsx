@@ -112,20 +112,22 @@ export const StylingToolbar = ({
 
   if (!currentSlideshow) {
     return (
-      <div className="h-full bg-gray-50 border-l border-gray-200 p-4">
-        <div className="text-center text-gray-500 mt-8">
-          <Type className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-          <h3 className="text-lg font-medium mb-2">No Slideshow Selected</h3>
-          <p className="text-sm">Create or select a slideshow to start editing</p>
+      <div className="h-full bg-gray-50 p-4 flex flex-col">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center text-gray-500">
+            <Type className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+            <h3 className="text-lg font-medium mb-2">No Slideshow Selected</h3>
+            <p className="text-sm">Create or select a slideshow to start editing</p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full bg-gray-50 border-l border-gray-200 flex flex-col">
+    <div className="h-full bg-gray-50 flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200">
+      <div className="p-4 border-b border-gray-200 flex-shrink-0">
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-lg font-semibold text-gray-900">Styling Panel</h2>
           <div className="flex items-center gap-2">
@@ -141,21 +143,22 @@ export const StylingToolbar = ({
       </div>
 
       {/* Content */}
-      <div className="flex-1 p-4 space-y-4 overflow-y-auto">
-        {/* Add Text Element Button */}
-        {onAddTextElement && (
-          <Button 
-            onClick={onAddTextElement}
-            className="w-full"
-            variant="outline"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Text Element
-          </Button>
-        )}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <div className="h-full p-4 space-y-4 overflow-y-auto">
+          {/* Add Text Element Button */}
+          {onAddTextElement && (
+            <Button 
+              onClick={onAddTextElement}
+              className="w-full"
+              variant="outline"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Text Element
+            </Button>
+          )}
 
-        {selectedTextElement ? (
-          <div className="space-y-4">
+          {selectedTextElement ? (
+            <div className="space-y-4">
             {/* Text Content */}
             <Card>
               <CardHeader className="pb-3">
@@ -256,20 +259,22 @@ export const StylingToolbar = ({
               <CardContent className="space-y-3">
                 <div>
                   <Label>Color Palette</Label>
-                  <div className="grid grid-cols-5 gap-2 mt-2">
-                    {COLOR_PALETTE.map((color) => (
-                      <button
-                        key={color}
-                        onClick={() => handleColorChange(color)}
-                        className={`w-8 h-8 rounded-md border-2 transition-all ${
-                          selectedTextElement.color === color 
-                            ? 'border-blue-500 scale-110' 
-                            : 'border-gray-300 hover:border-gray-400'
-                        }`}
-                        style={{ backgroundColor: color }}
-                        title={color}
-                      />
-                    ))}
+                  <div className="max-h-32 overflow-y-auto mt-2">
+                    <div className="grid grid-cols-5 gap-2">
+                      {COLOR_PALETTE.map((color) => (
+                        <button
+                          key={color}
+                          onClick={() => handleColorChange(color)}
+                          className={`w-8 h-8 rounded-md border-2 transition-all ${
+                            selectedTextElement.color === color 
+                              ? 'border-blue-500 scale-110' 
+                              : 'border-gray-300 hover:border-gray-400'
+                          }`}
+                          style={{ backgroundColor: color }}
+                          title={color}
+                        />
+                      ))}
+                    </div>
                   </div>
                 </div>
                 
@@ -425,6 +430,7 @@ export const StylingToolbar = ({
             )}
           </div>
         )}
+        </div>
       </div>
     </div>
   );

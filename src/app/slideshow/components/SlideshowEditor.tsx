@@ -115,25 +115,27 @@ export const SlideshowEditor = ({
           <CardContent>
             {selectedSlide ? (
               <div className="space-y-4">
-                <div className="relative aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden">
-                  <img
-                    src={selectedSlide.imageUrl}
-                    alt="Slide preview"
-                    className="w-full h-full object-cover"
-                  />
-                  {selectedSlide.textElements.length > 0 && (
-                    <div className="absolute inset-0 flex items-center justify-center p-4">
-                      <div className="bg-black bg-opacity-50 text-white p-3 rounded-lg text-center max-w-full">
-                        <p className="text-sm font-medium break-words">
-                          {selectedSlide.textElements.map(text => text.text).join(', ')}
-                        </p>
+                <div className="relative bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center" style={{ minHeight: '200px' }}>
+                  <div className="relative">
+                    <img
+                      src={selectedSlide.imageUrl}
+                      alt="Slide preview"
+                      className="max-w-full max-h-[500px] object-contain block"
+                    />
+                    {selectedSlide.textElements.length > 0 && (
+                      <div className="absolute inset-0 flex items-center justify-center p-4">
+                        <div className="bg-black bg-opacity-50 text-white p-3 rounded-lg text-center max-w-full">
+                          <p className="text-sm font-medium break-words">
+                            {selectedSlide.textElements.map(text => text.text).join(', ')}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             ) : (
-              <div className="aspect-[4/3] bg-gray-100 rounded-lg flex items-center justify-center">
+              <div className="bg-gray-100 rounded-lg flex items-center justify-center" style={{ minHeight: '200px' }}>
                 <p className="text-gray-500">Select a slide to preview</p>
               </div>
             )}

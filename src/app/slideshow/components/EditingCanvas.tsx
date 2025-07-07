@@ -121,10 +121,11 @@ export const EditingCanvas = ({
       {/* Canvas Area */}
       <div className="flex-1 p-6 bg-gray-50">
         <div className="h-full flex items-center justify-center">
-          {/* Canvas Container - 16:9 aspect ratio */}
+          {/* Canvas Container - Dynamic aspect ratio based on image */}
           <div 
             ref={canvasRef}
-            className="relative bg-white shadow-lg rounded-lg overflow-hidden max-w-4xl w-full aspect-video"
+            className="relative bg-white shadow-lg rounded-lg overflow-hidden"
+            style={{ maxWidth: '90%', maxHeight: '90%' }}
             onClick={handleCanvasClick}
           >
             {/* Carousel Arrows */}
@@ -152,9 +153,18 @@ export const EditingCanvas = ({
             <img
               src={selectedSlide.imageUrl}
               alt={`Slide ${selectedSlide.order + 1}`}
-              className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+              className="block max-w-full max-h-full object-contain pointer-events-none"
+              style={{ maxHeight: '80vh', maxWidth: '100%' }}
               onLoad={(e) => {
                 console.log('Image loaded successfully:', selectedSlide.imageUrl);
+                // Update canvas dimensions based on actual image size
+                if (canvasRef.current) {
+                  const rect = canvasRef.current.getBoundingClientRect();
+                  setCanvasDimensions({
+                    width: rect.width,
+                    height: rect.height
+                  });
+                }
               }}
               onError={(e) => {
                 console.error('Image failed to load:', selectedSlide.imageUrl);
@@ -171,22 +181,24 @@ export const EditingCanvas = ({
             />
 
             {/* Interactive Text Elements */}
-            {selectedSlide.textElements && selectedSlide.textElements.length > 0 && (
-              <>
-                {selectedSlide.textElements.map((textElement) => (
-                  <DraggableTextBox
-                    key={textElement.id}
-                    textElement={textElement}
-                    isSelected={selectedTextElement?.id === textElement.id}
-                    canvasWidth={canvasDimensions.width}
-                    canvasHeight={canvasDimensions.height}
-                    onSelect={onSelectTextElement || (() => {})}
-                    onUpdate={onUpdateTextElement || (() => {})}
-                    onDelete={onDeleteTextElement || (() => {})}
-                  />
-                ))}
-              </>
-            )}
+            <div className="absolute inset-0">
+              {selectedSlide.textElements && selectedSlide.textElements.length > 0 && (
+                <>
+                  {selectedSlide.textElements.map((textElement) => (
+                    <DraggableTextBox
+                      key={textElement.id}
+                      textElement={textElement}
+                      isSelected={selectedTextElement?.id === textElement.id}
+                      canvasWidth={canvasDimensions.width}
+                      canvasHeight={canvasDimensions.height}
+                      onSelect={onSelectTextElement || (() => {})}
+                      onUpdate={onUpdateTextElement || (() => {})}
+                      onDelete={onDeleteTextElement || (() => {})}
+                    />
+                  ))}
+                </>
+              )}
+            </div>
 
             {/* Guidelines overlay - only show when text element is selected */}
             {selectedTextElement && (

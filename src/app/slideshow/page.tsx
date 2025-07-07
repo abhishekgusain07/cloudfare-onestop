@@ -659,19 +659,21 @@ const SlideshowPage = () => {
                 />
               }
               rightPanel={
-                <div>
+                <div className="h-full flex flex-col">
                   <RenderControls
                     status={exportStatus}
                     renderUrl={renderUrl}
                     onExport={handleExport}
                     isExporting={isExporting}
                   />
-                  <StylingToolbar
-                    selectedTextElement={selectedTextElement}
-                    currentSlideshow={currentSlideshow}
-                    onUpdateTextElement={handleUpdateTextElement}
-                    onAddTextElement={handleAddTextElement}
-                  />
+                  <div className="flex-1 min-h-0">
+                    <StylingToolbar
+                      selectedTextElement={selectedTextElement}
+                      currentSlideshow={currentSlideshow}
+                      onUpdateTextElement={handleUpdateTextElement}
+                      onAddTextElement={handleAddTextElement}
+                    />
+                  </div>
                 </div>
               }
             />

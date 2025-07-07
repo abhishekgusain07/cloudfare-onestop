@@ -8,7 +8,7 @@ import { eq, and, asc } from "drizzle-orm";
 // GET /api/slideshow/[id] - Get a specific slideshow with its slides
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth.api.getSession({
@@ -19,10 +19,12 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
+
     const slideshowData = await db
       .select()
       .from(slideshows)
-      .where(and(eq(slideshows.id, params.id), eq(slideshows.userId, session.user.id)))
+      .where(and(eq(slideshows.id, id), eq(slideshows.userId, session.user.id)))
       .limit(1);
 
     if (slideshowData.length === 0) {
@@ -32,7 +34,7 @@ export async function GET(
     const slideData = await db
       .select()
       .from(slides)
-      .where(eq(slides.slideshowId, params.id))
+      .where(eq(slides.slideshowId, id))
       .orderBy(slides.order);
 
     return NextResponse.json({
@@ -48,7 +50,7 @@ export async function GET(
 // PUT /api/slideshow/[id] - Update a slideshow
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Get the current user's session
@@ -63,7 +65,7 @@ export async function PUT(
       );
     }
 
-    const { id } = params;
+    const { id } = await params;
     const data = await request.json();
 
     // Verify the slideshow belongs to the user
@@ -107,7 +109,7 @@ export async function PUT(
 // DELETE /api/slideshow/[id] - Delete a slideshow
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth.api.getSession({
@@ -118,11 +120,13 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
+
     // Verify slideshow ownership
     const existingSlideshow = await db
       .select()
       .from(slideshows)
-      .where(and(eq(slideshows.id, params.id), eq(slideshows.userId, session.user.id)))
+      .where(and(eq(slideshows.id, id), eq(slideshows.userId, session.user.id)))
       .limit(1);
 
     if (existingSlideshow.length === 0) {
@@ -130,10 +134,10 @@ export async function DELETE(
     }
 
     // Delete associated slides first
-    await db.delete(slides).where(eq(slides.slideshowId, params.id));
+    await db.delete(slides).where(eq(slides.slideshowId, id));
 
     // Delete the slideshow
-    await db.delete(slideshows).where(eq(slideshows.id, params.id));
+    await db.delete(slideshows).where(eq(slideshows.id, id));
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -144,7 +148,7 @@ export async function DELETE(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth.api.getSession({
@@ -155,13 +159,14 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const { slides: slideUpdates, ...slideshowUpdates } = await request.json();
 
     // Verify slideshow ownership
     const existingSlideshow = await db
       .select()
       .from(slideshows)
-      .where(and(eq(slideshows.id, params.id), eq(slideshows.userId, session.user.id)))
+      .where(and(eq(slideshows.id, id), eq(slideshows.userId, session.user.id)))
       .limit(1);
 
     if (existingSlideshow.length === 0) {
@@ -176,7 +181,7 @@ export async function PATCH(
           ...slideshowUpdates,
           updatedAt: new Date(),
         })
-        .where(eq(slideshows.id, params.id));
+        .where(eq(slideshows.id, id));
     }
 
     // Update slides if provided
@@ -185,7 +190,7 @@ export async function PATCH(
       const existingSlides = await db
         .select()
         .from(slides)
-        .where(eq(slides.slideshowId, params.id));
+        .where(eq(slides.slideshowId, id));
 
       const existingSlideIds = new Set(existingSlides.map(slide => slide.id));
 
@@ -212,13 +217,13 @@ export async function PATCH(
     const updatedSlideshow = await db
       .select()
       .from(slideshows)
-      .where(eq(slideshows.id, params.id))
+      .where(eq(slideshows.id, id))
       .limit(1);
 
     const updatedSlides = await db
       .select()
       .from(slides)
-      .where(eq(slides.slideshowId, params.id))
+      .where(eq(slides.slideshowId, id))
       .orderBy(slides.order);
 
     return NextResponse.json({

@@ -22,6 +22,7 @@ import {
   AIImageGenerator,
   CreateCollectionModal,
   DeleteCollectionModal,
+  DeleteSlideshowModal,
   ImagePickerModal
 } from './components';
 import { RenderControls } from './components/RenderControls';
@@ -45,6 +46,9 @@ const SlideshowPage = () => {
   const [isDeletingCollection, setIsDeletingCollection] = useState(false);
   const [isCreateCollectionModalOpen, setIsCreateCollectionModalOpen] = useState(false);
   const [isImagePickerModalOpen, setIsImagePickerModalOpen] = useState(false);
+  const [isDeleteSlideshowModalOpen, setIsDeleteSlideshowModalOpen] = useState(false);
+  const [slideshowToDelete, setSlideshowToDelete] = useState<Slideshow | null>(null);
+  const [isDeletingSlideshow, setIsDeletingSlideshow] = useState(false);
   
   // Phase 1 Editor State
   const [selectedTextElement, setSelectedTextElement] = useState<TextElement | null>(null);
@@ -187,6 +191,37 @@ const SlideshowPage = () => {
       console.error('Failed to delete collection:', error);
     } finally {
       setIsDeletingCollection(false);
+    }
+  };
+
+  const deleteSlideshow = async (slideshowId: string) => {
+    setIsDeletingSlideshow(true);
+    try {
+      const response = await fetch(`/api/slideshow/${slideshowId}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        setSlideshows(slideshows => 
+          slideshows.filter(slideshow => slideshow.id !== slideshowId)
+        );
+        setIsDeleteSlideshowModalOpen(false);
+        setSlideshowToDelete(null);
+        
+        // If the deleted slideshow was the current one, clear it
+        if (currentSlideshow?.id === slideshowId) {
+          setCurrentSlideshow(null);
+          setSlides([]);
+          setSelectedSlide(null);
+        }
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to delete slideshow:', errorData.message);
+      }
+    } catch (error) {
+      console.error('Failed to delete slideshow:', error);
+    } finally {
+      setIsDeletingSlideshow(false);
     }
   };
 
@@ -379,6 +414,11 @@ const SlideshowPage = () => {
   const handleDeleteCollection = (collection: ImageCollection) => {
     setCollectionToDelete(collection);
     setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteSlideshow = (slideshow: Slideshow) => {
+    setSlideshowToDelete(slideshow);
+    setIsDeleteSlideshowModalOpen(true);
   };
 
   const handlePreviewSlideshow = (slideshow: Slideshow) => {
@@ -584,6 +624,7 @@ const SlideshowPage = () => {
           {/* My Slideshows Tab */}
           <TabsContent value="my-slideshows" className="space-y-4">
             <SlideshowGrid
+              onDeleteSlideshow={handleDeleteSlideshow}
               slideshows={slideshows}
               onCreateSlideshow={createSlideshow}
               onLoadSlideshow={loadSlideshow}
@@ -686,6 +727,17 @@ const SlideshowPage = () => {
           collectionToDelete={collectionToDelete}
           onDeleteCollection={deleteCollection}
           isDeleting={isDeletingCollection}
+        />
+
+        <DeleteSlideshowModal
+          isOpen={isDeleteSlideshowModalOpen}
+          onClose={() => {
+            setIsDeleteSlideshowModalOpen(false);
+            setSlideshowToDelete(null);
+          }}
+          slideshowToDelete={slideshowToDelete}
+          onDeleteSlideshow={deleteSlideshow}
+          isDeleting={isDeletingSlideshow}
         />
 
         <ImagePickerModal

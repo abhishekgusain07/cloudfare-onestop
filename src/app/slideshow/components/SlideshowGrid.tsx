@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Edit3, Play, Image as ImageIcon } from 'lucide-react';
+import { Plus, Edit3, Play, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { Slideshow } from '../types';
 
 interface SlideshowGridProps {
@@ -12,6 +12,7 @@ interface SlideshowGridProps {
   onCreateSlideshow: (title: string) => Promise<void>;
   onLoadSlideshow: (slideshowId: string) => Promise<void>;
   onPreviewSlideshow: (slideshow: Slideshow) => void;
+  onDeleteSlideshow: (slideshow: Slideshow) => void;
   isLoading: boolean;
 }
 
@@ -20,6 +21,7 @@ export const SlideshowGrid = ({
   onCreateSlideshow,
   onLoadSlideshow,
   onPreviewSlideshow,
+  onDeleteSlideshow,
   isLoading
 }: SlideshowGridProps) => {
   const [newSlideshowTitle, setNewSlideshowTitle] = useState('');
@@ -55,9 +57,22 @@ export const SlideshowGrid = ({
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {slideshows && slideshows.length > 0 ? slideshows.map((slideshow) => (
-          <Card key={slideshow.id} className="cursor-pointer hover:shadow-lg transition-shadow">
+          <Card key={slideshow.id} className="cursor-pointer hover:shadow-lg transition-shadow group">
             <CardContent className="p-4">
-              <h3 className="font-semibold text-lg mb-2">{slideshow.title}</h3>
+              <div className="flex items-start justify-between mb-2">
+                <h3 className="font-semibold text-lg">{slideshow.title}</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700 hover:bg-red-50"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteSlideshow(slideshow);
+                  }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
               <p className="text-sm text-gray-600 mb-4">
                 {slideshow.slides?.length || 0} slides • Created {new Date(slideshow.createdAt).toLocaleDateString()}
               </p>

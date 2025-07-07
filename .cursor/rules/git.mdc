@@ -1,0 +1,7 @@
+---
+description: to write good git commit message
+globs:
+alwaysApply: false
+---
+
+according to the action done in the chat, or the recent fixes you have done, write a conside git commit message, it should be short, 10 word max, concise and to the point

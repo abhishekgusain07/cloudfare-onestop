@@ -128,6 +128,8 @@ export const SlideshowEditorDemo = () => {
         }
         centerPanel={
           <EditingCanvas
+            slides={slides}
+            onSelectSlide={handleSelectSlide}
             selectedSlide={selectedSlide}
             selectedTextElement={selectedTextElement}
             onAddTextElement={handleAddTextElement}

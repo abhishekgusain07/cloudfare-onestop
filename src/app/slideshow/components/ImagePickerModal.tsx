@@ -100,7 +100,7 @@ export const ImagePickerModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+      <DialogContent className="max-w-7xl h-[90vh] flex flex-col" style={{ width: '80vw', maxWidth: '100vw', height: '90vh' }}>
         <DialogHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -169,11 +169,14 @@ export const ImagePickerModal = ({
                           {collection.images && collection.images.length > 0 ? (
                             <div className="grid grid-cols-2 gap-1 h-full">
                               {collection.images.slice(0, 4).map((image, index) => (
-                                <div key={index} className="relative">
+                                <div key={index} className="relative bg-gray-100">
                                   <img
                                     src={image.url}
                                     alt=""
-                                    className="w-full h-full object-cover"
+                                    className="absolute inset-0 w-full h-full object-cover"
+                                    onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+                                      console.error('Failed to load collection preview image:', image.url);
+                                    }}
                                   />
                                 </div>
                               ))}
@@ -252,30 +255,51 @@ export const ImagePickerModal = ({
                 {filteredImages.length > 0 ? (
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                     {filteredImages.map((image) => (
-                      <Card key={image.id} className="group overflow-hidden hover:shadow-md transition-shadow">
-                        <CardContent className="p-0">
-                          <div className="relative aspect-square">
-                            <img
-                              src={image.url}
-                              alt=""
-                              className="w-full h-full object-cover"
-                            />
-                            
-                            {/* Overlay with Add Button */}
-                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
+                      <div key={image.id} className="group relative aspect-square">
+                        <div 
+                          className="relative w-full h-full bg-gray-100 rounded-lg overflow-hidden border border-gray-200 hover:shadow-md transition-shadow cursor-pointer"
+                          style={{ minHeight: '200px' }}
+                        >
+                          <img
+                            src={image.url}
+                            alt="Collection image"
+                            className="absolute inset-0 w-full h-full object-cover"
+                            onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+                              console.error('Failed to load image:', image.url);
+                              console.error('Error details:', e);
+                            }}
+                            onLoad={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+                              console.log('Image loaded successfully:', image.url);
+                              const img = e.target as HTMLImageElement;
+                              console.log('Image dimensions:', {
+                                naturalWidth: img.naturalWidth,
+                                naturalHeight: img.naturalHeight,
+                                displayWidth: img.width,
+                                displayHeight: img.height,
+                                complete: img.complete
+                              });
+                            }}
+                          />
+                          
+                          {/* Overlay with Add Button */}
+                          <div className="absolute inset-0 bg-transparent group-hover:bg-black/30 transition-all duration-200 flex items-center justify-center">
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
                               <Button
                                 size="sm"
-                                className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                onClick={() => handleAddImage(image.url, image.id)}
+                                className="bg-white text-black hover:bg-gray-100"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAddImage(image.url, image.id);
+                                }}
                                 disabled={addingImages.has(image.id) || !currentSlideshow}
                               >
-                                <Plus className="w-4 h-4 mr-2" />
+                                <Plus className="w-4 h-4 mr-1" />
                                 {addingImages.has(image.id) ? 'Adding...' : 'Add to Slideshow'}
                               </Button>
                             </div>
                           </div>
-                        </CardContent>
-                      </Card>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 ) : (

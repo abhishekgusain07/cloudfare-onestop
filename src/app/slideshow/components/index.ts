@@ -1,4 +1,5 @@
 export { CollectionSkeleton } from './CollectionSkeleton';
+export { SlideshowSkeleton } from './SlideshowSkeleton';
 export { CreateCollectionModal } from './CreateCollectionModal';
 export { DeleteCollectionModal } from './DeleteCollectionModal';
 export { DeleteSlideshowModal } from './DeleteSlideshowModal';

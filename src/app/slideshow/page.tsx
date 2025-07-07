@@ -37,7 +37,7 @@ const SlideshowPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isCreatingCollection, setIsCreatingCollection] = useState(false);
   const [activeTab, setActiveTab] = useState('my-slideshows');
-  const [slideshowPreview, setSlideshowPreview] = useState(false);
+  const [isLoadingSlideshows, setIsLoadingSlideshows] = useState(true);
   const [isLoadingCollections, setIsLoadingCollections] = useState(true);
   const [openedCollection, setOpenedCollection] = useState<ImageCollection | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -49,6 +49,7 @@ const SlideshowPage = () => {
   const [isDeleteSlideshowModalOpen, setIsDeleteSlideshowModalOpen] = useState(false);
   const [slideshowToDelete, setSlideshowToDelete] = useState<Slideshow | null>(null);
   const [isDeletingSlideshow, setIsDeletingSlideshow] = useState(false);
+  const [previewingSlideshow, setPreviewingSlideshow] = useState<string | null>(null);
   
   // Phase 1 Editor State
   const [selectedTextElement, setSelectedTextElement] = useState<TextElement | null>(null);
@@ -60,6 +61,7 @@ const SlideshowPage = () => {
 
   // API Functions
   const loadSlideshows = async () => {
+    setIsLoadingSlideshows(true);
     try {
       const response = await fetch('/api/slideshow');
       if (response.ok) {
@@ -82,6 +84,8 @@ const SlideshowPage = () => {
     } catch (error) {
       console.error('Failed to load slideshows:', error);
       setSlideshows([]);
+    } finally {
+      setIsLoadingSlideshows(false);
     }
   };
 
@@ -407,6 +411,9 @@ const SlideshowPage = () => {
       }
     } catch (error) {
       console.error('Failed to load slideshow:', error);
+    } finally {
+      // Clear the previewing state regardless of success or failure
+      setPreviewingSlideshow(null);
     }
   };
 
@@ -422,8 +429,10 @@ const SlideshowPage = () => {
   };
 
   const handlePreviewSlideshow = (slideshow: Slideshow) => {
-    setCurrentSlideshow(slideshow);
-    setSlideshowPreview(true);
+    // Set loading state for this specific slideshow
+    setPreviewingSlideshow(slideshow.id);
+    // Load the slideshow with its slides and switch to editor for preview
+    loadSlideshow(slideshow.id);
   };
 
   const openCollection = (collection: ImageCollection) => {
@@ -630,6 +639,8 @@ const SlideshowPage = () => {
               onLoadSlideshow={loadSlideshow}
               onPreviewSlideshow={handlePreviewSlideshow}
               isLoading={isLoading}
+              isLoadingSlideshows={isLoadingSlideshows}
+              previewingSlideshow={previewingSlideshow}
             />
           </TabsContent>
 

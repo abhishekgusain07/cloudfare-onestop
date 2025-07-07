@@ -13,7 +13,8 @@ export interface Slideshow {
   id: string;
   title: string;
   createdAt: string;
-  slides: Slide[];
+  slides?: Slide[]; // Optional when only fetching metadata
+  slideCount?: number; // Count of slides when not fetching full slides
   status: 'draft' | 'rendering' | 'completed' | 'failed';
   outputFormat: 'video' | 'images'; // User's desired output
   renderUrl?: string | null; // URL to the final rendered file (video or zip of images)

@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/db/drizzle";
-import { slideshows, insertSlideshowSchema } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { slideshows, slides, insertSlideshowSchema } from "@/db/schema";
+import { eq, desc, count } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 // POST /api/slideshow - Create a new slideshow
@@ -67,10 +67,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get all slideshows for the user, ordered by most recent first
-    const userSlideshows = await db.select()
+    // Get all slideshows for the user with slide counts, ordered by most recent first
+    const userSlideshows = await db.select({
+      id: slideshows.id,
+      userId: slideshows.userId,
+      title: slideshows.title,
+      status: slideshows.status,
+      outputFormat: slideshows.outputFormat,
+      renderUrl: slideshows.renderUrl,
+      createdAt: slideshows.createdAt,
+      updatedAt: slideshows.updatedAt,
+      slideCount: count(slides.id)
+    })
       .from(slideshows)
+      .leftJoin(slides, eq(slideshows.id, slides.slideshowId))
       .where(eq(slideshows.userId, session.user.id))
+      .groupBy(slideshows.id, slideshows.userId, slideshows.title, slideshows.status, slideshows.outputFormat, slideshows.renderUrl, slideshows.createdAt, slideshows.updatedAt)
       .orderBy(desc(slideshows.updatedAt));
 
     return NextResponse.json({

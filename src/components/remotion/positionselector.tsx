@@ -22,8 +22,8 @@ export const PositionSelector: React.FC<PositionSelectorProps> = ({
       onClick={() => onPositionChange(pos)}
       className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all hover:scale-105 ${
         position === pos
-          ? 'border-blue-500 bg-blue-500/20 text-blue-400'
-          : 'border-gray-600 bg-gray-700 text-gray-300 hover:border-gray-500'
+          ? 'border-blue-400 bg-blue-500/20 text-blue-400 shadow-lg shadow-blue-400/25'
+          : 'border-slate-600/50 bg-slate-800/80 text-slate-300 hover:border-slate-500/70 hover:bg-slate-700/80'
       }`}
     >
       <div className="text-2xl mb-2">{icon}</div>
@@ -40,8 +40,8 @@ export const PositionSelector: React.FC<PositionSelectorProps> = ({
       onClick={() => onAlignChange(alignment)}
       className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all hover:scale-105 ${
         align === alignment
-          ? 'border-green-500 bg-green-500/20 text-green-400'
-          : 'border-gray-600 bg-gray-700 text-gray-300 hover:border-gray-500'
+          ? 'border-emerald-400 bg-emerald-500/20 text-emerald-400 shadow-lg shadow-emerald-400/25'
+          : 'border-slate-600/50 bg-slate-800/80 text-slate-300 hover:border-slate-500/70 hover:bg-slate-700/80'
       }`}
     >
       <div className="text-xl mb-1">{icon}</div>
@@ -50,13 +50,13 @@ export const PositionSelector: React.FC<PositionSelectorProps> = ({
   );
 
   return (
-    <div className="bg-gray-800 rounded-lg p-6">
-      <h3 className="text-lg font-semibold mb-4">Text Position</h3>
+    <div className="bg-slate-900/90 backdrop-blur-sm rounded-lg p-6 border border-slate-700/50">
+      <h3 className="text-lg font-semibold mb-4 text-slate-100">Text Position</h3>
       
       <div className="space-y-6">
         {/* Vertical Position */}
         <div>
-          <label className="block text-sm font-medium mb-3">
+          <label className="block text-sm font-medium mb-3 text-slate-200">
             Vertical Position
           </label>
           <div className="grid grid-cols-3 gap-3">
@@ -94,7 +94,7 @@ export const PositionSelector: React.FC<PositionSelectorProps> = ({
 
         {/* Horizontal Alignment */}
         <div>
-          <label className="block text-sm font-medium mb-3">
+          <label className="block text-sm font-medium mb-3 text-slate-200">
             Text Alignment
           </label>
           <div className="grid grid-cols-3 gap-3">
@@ -136,12 +136,12 @@ export const PositionSelector: React.FC<PositionSelectorProps> = ({
 
         {/* Visual Preview */}
         <div>
-          <label className="block text-sm font-medium mb-3">
+          <label className="block text-sm font-medium mb-3 text-slate-200">
             Preview
           </label>
-          <div className="relative bg-gray-900 rounded-lg h-24 border border-gray-600">
+          <div className="relative bg-slate-950/80 rounded-lg h-24 border border-slate-700/50">
             <div
-              className={`absolute bg-blue-500 text-white text-xs px-2 py-1 rounded ${
+              className={`absolute bg-blue-500 text-white text-xs px-2 py-1 rounded shadow-lg ${
                 position === 'top' ? 'top-2' : 
                 position === 'bottom' ? 'bottom-2' : 
                 'top-1/2 transform -translate-y-1/2'

@@ -20,81 +20,91 @@
 
 ```
 cloudfare_onestopmarketing/
-├── 📄 Configuration Files
-│   ├── package.json                 # Main dependencies and scripts
-│   ├── tsconfig.json               # TypeScript configuration
-│   ├── tailwind.config.ts          # Tailwind CSS configuration
-│   ├── next.config.js              # Next.js configuration
-│   ├── drizzle.config.ts           # Database ORM configuration
-│   ├── docker-compose.yml          # Docker orchestration
-│   └── env.example                 # Environment variables template
-│
-├── 🏠 Frontend (Next.js App)
-│   └── src/
-│       ├── 📱 App Router Pages
-│       │   ├── (auth)/             # Authentication routes
-│       │   │   ├── sign-in/
-│       │   │   └── sign-up/
-│       │   ├── (dashboard)/        # Protected dashboard routes
-│       │   │   ├── dashboard/
-│       │   │   └── slide/
-│       │   ├── (tools)/            # Tool-specific routes
-│       │   │   └── tweettovideo/
-│       │   ├── api/                # API routes
-│       │   │   ├── (tools)/        # Tool-specific APIs
-│       │   │   ├── auth/           # Authentication APIs
-│       │   │   ├── cloudinary/     # Image upload APIs
-│       │   │   ├── payments/       # Stripe payment APIs
-│       │   │   ├── render/         # Video rendering APIs
-│       │   │   ├── slideshow/      # Slideshow management APIs
-│       │   │   └── user/           # User management APIs
-│       │   ├── create/             # Video creation pages
-│       │   ├── slideshow/          # Slideshow editor
-│       │   └── onboarding/         # User onboarding
-│       │
-│       ├── 🧩 Components
-│       │   ├── ui/                 # Reusable UI components (shadcn/ui)
-│       │   ├── remotion/           # Video composition components
-│       │   ├── slideshow/          # Slideshow editor components
-│       │   ├── feedback/           # Feedback system components
-│       │   └── homepage/           # Landing page components
-│       │
-│       ├── 🗄️ Database
-│       │   ├── schema.ts           # Drizzle ORM schema definitions
-│       │   ├── drizzle.ts          # Database connection
-│       │   └── migrations/         # Database migration files
-│       │
-│       ├── 🛠️ Utilities & Libraries
-│       │   ├── lib/                # Core libraries
-│       │   │   ├── auth.ts         # Authentication utilities
-│       │   │   ├── cloudinary/     # Cloudinary integration
-│       │   │   └── utils.ts        # General utilities
-│       │   ├── hooks/              # Custom React hooks
-│       │   ├── store/              # State management (Zustand)
-│       │   └── utils/              # Utility functions
-│       │
-│       └── 📋 Configuration
-│           ├── config.ts           # App configuration
-│           └── env.ts              # Environment variables
-│
-├── ⚙️ Backend (Express.js)
+├── architecture.md                # System architecture overview
+├── auth-schema.ts                 # Auth schema definitions
+├── backend/                       # Backend (Express.js)
+│   ├── Dockerfile
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── r2-config-example.env
+│   ├── renders/
 │   ├── src/
-│   │   └── server.ts              # Express server for video rendering
-│   ├── package.json               # Backend dependencies
-│   ├── Dockerfile                 # Backend containerization
-│   └── renders/                   # Rendered video storage
-│
-├── 🎨 Public Assets
-│   ├── images/                    # Static images
-│   ├── videos/                    # Video assets
+│   │   └── server.ts
+│   ├── test-r2-connection.mjs
+│   └── tsconfig.json
+├── bun.lockb                      # Bun package lock
+├── claude.md                      # AI assistant notes
+├── components.json                # Component registry/config
+├── docker-compose.yml             # Docker orchestration
+├── Dockerfile.frontend            # Frontend Dockerfile
+├── drizzle.config.ts              # Drizzle ORM config
+├── env.example                    # Environment variables template
+├── eslint.config.mjs              # ESLint config
+├── next.config.js / .mjs / .ts    # Next.js config (multiple formats)
+├── package.json                   # Main dependencies and scripts
+├── package-lock.json
+├── plan.md                        # Development roadmap
+├── postcss.config.mjs             # PostCSS config
+├── projectnavigation.md           # This navigation file
+├── public/                        # Static assets
+│   ├── 1stop.png, 1stoplogo.png, drizzle.svg, ...
 │   ├── music/                     # Audio assets
-│   └── remotion/                  # Remotion-specific assets
-│
-└── 📚 Documentation
-    ├── README.md                  # Main project documentation
-    ├── architecture.md            # System architecture overview
-    ├── plan.md                    # Development roadmap
-    └── claude.md                  # AI assistant notes
+│   ├── remotion/                  # Remotion assets
+│   ├── renders/                   # Rendered videos
+│   ├── socialslogo/               # Social media icons
+│   ├── videos/                    # Video assets
+│   └── ...
+├── README-REMOTION.md             # Remotion-specific docs
+├── README.md                      # Main project documentation
+├── sentry.edge.config.ts          # Sentry edge config
+├── sentry.server.config.ts        # Sentry server config
+├── slideshoweditorplan.md         # Slideshow editor planning
+├── src/
+│   ├── actions/
+│   │   └── feedback.ts            # Feedback actions
+│   ├── app/                       # Next.js App Router
+│   │   ├── (auth)/                # Auth routes (sign-in, sign-up)
+│   │   ├── (dashboard)/           # Dashboard routes
+│   │   ├── (tools)/               # Tool-specific routes (e.g., tweettovideo)
+│   │   ├── api/                   # API routes (tools, auth, cloudinary, payments, render, slideshow, user, etc.)
+│   │   ├── auth/                  # Onboarding UI
+│   │   ├── components/            # Landing/marketing components
+│   │   ├── create/                # Avatar/video creation
+│   │   ├── ghibli/                # Ghibli generator
+│   │   ├── onboarding/            # User onboarding
+│   │   ├── onlypaid/              # Paid user restriction page
+│   │   ├── profile/               # User profile
+│   │   ├── sentry-example-page/   # Sentry test page
+│   │   ├── slideshow/             # Slideshow editor
+│   │   └── ...                    # Other pages (error, not-found, etc.)
+│   ├── components/                # App-wide components
+│   │   ├── feedback/              # Feedback system
+│   │   ├── homepage/              # Landing page
+│   │   ├── remotion/              # Video composition/editor components
+│   │   ├── ui/                    # Reusable UI (shadcn/ui)
+│   │   └── ...
+│   ├── config.ts                  # App config
+│   ├── db/                        # Database
+│   │   ├── drizzle.ts             # Drizzle ORM connection
+│   │   ├── migrations/            # DB migrations
+│   │   └── schema.ts              # DB schema
+│   ├── env.ts                     # Environment variables
+│   ├── hooks/                     # Custom React hooks
+│   ├── instrumentation-client.ts  # Sentry/PostHog client
+│   ├── instrumentation.ts         # Sentry/PostHog server
+│   ├── lib/                       # Core libraries (auth, cloudinary, posthog, utils)
+│   ├── middleware.ts              # Middleware
+│   ├── remotion.config.ts         # Remotion config
+│   ├── store/                     # Zustand stores
+│   └── utils/                     # Utility functions
+├── tailwind.config.ts             # Tailwind CSS config
+├── temp.js                        # Temporary scripts
+├── test/                          # Test scripts/assets
+│   ├── test-upload-image.mjs
+│   ├── test-upload-simple.mjs
+│   └── test-upload.png
+├── todo.txt                       # TODOs
+└── tsconfig.json                  # TypeScript config
 ```
 
 ---
@@ -102,8 +112,6 @@ cloudfare_onestopmarketing/
 ## 🏛️ Architecture Overview
 
 ### Frontend Architecture (Next.js 15 + App Router)
-
-#### **Core Technologies**
 - **Framework**: Next.js 15 with App Router
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS + shadcn/ui components
@@ -112,77 +120,41 @@ cloudfare_onestopmarketing/
 - **Database**: Drizzle ORM with PostgreSQL
 
 #### **Key Application Features**
-
 1. **Authentication System** (`src/app/(auth)/`)
-   - Sign-in/Sign-up pages
-   - OAuth integration
-   - Session management
-
 2. **Dashboard** (`src/app/(dashboard)/`)
-   - User dashboard with project overview
-   - Slide management interface
-
 3. **Video Creation Tools** (`src/app/(tools)/`)
-   - Tweet-to-video converter
-   - AI-powered video generation
-
 4. **Slideshow Editor** (`src/app/slideshow/`)
-   - Drag-and-drop interface
-   - Real-time preview
-   - AI image generation
+5. **Landing & Onboarding** (`src/app/components/`, `src/app/onboarding/`)
+6. **Profile & Subscription** (`src/app/profile/`, `src/app/onlypaid/`)
 
 #### **Component Architecture**
-
 ```
 src/components/
 ├── ui/                    # Reusable UI components
-│   ├── button.tsx        # Button variants
-│   ├── dialog.tsx        # Modal dialogs
-│   ├── form.tsx          # Form components
-│   └── ...               # Other shadcn/ui components
-├── remotion/             # Video composition components
-│   ├── Root.tsx          # Main video composition
-│   ├── videoComposition.tsx
-│   └── videoEditor.tsx
-├── slideshow/            # Slideshow editor components
-│   ├── SlideshowEditor.tsx
-│   ├── EditingCanvas.tsx
-│   └── StylingToolbar.tsx
-└── feedback/             # User feedback system
-    ├── FeedbackButton.tsx
-    └── FeedbackModal.tsx
+├── remotion/              # Video composition/editor components
+├── slideshow/             # Slideshow editor components
+├── feedback/              # User feedback system
+├── homepage/              # Landing page components
+└── ...
 ```
 
 ### Backend Architecture (Express.js)
-
-#### **Core Technologies**
 - **Framework**: Express.js with TypeScript
 - **Video Rendering**: Remotion
 - **Cloud Storage**: AWS SDK (Cloudflare R2)
 - **File Processing**: FFmpeg
 
 #### **API Endpoints**
-
 ```
-/api/
-├── auth/                 # Authentication endpoints
-├── payments/             # Stripe payment processing
-│   ├── create-checkout-session/
-│   └── webhook/
-├── render/               # Video rendering
-│   ├── route.ts          # Start render job
-│   ├── [renderId]/       # Check render status
-│   └── lambda/           # Serverless rendering
-├── slideshow/            # Slideshow management
-│   ├── route.ts          # CRUD operations
-│   ├── [id]/             # Individual slideshow
-│   └── slides/           # Slide management
-├── cloudinary/           # Image upload
-│   ├── upload/
-│   └── upload-buffer/
-└── user/                 # User management
-    ├── onboarding/
-    └── check-onboarding/
+src/app/api/
+├── (tools)/               # Tool-specific APIs
+├── auth/                  # Authentication APIs
+├── cloudinary/            # Image upload APIs
+├── payments/              # Stripe payment APIs
+├── render/                # Video rendering APIs
+├── slideshow/             # Slideshow management APIs
+├── user/                  # User management APIs
+└── ...
 ```
 
 ---
@@ -190,52 +162,22 @@ src/components/
 ## 🗄️ Database Schema
 
 ### Core Tables
-
-#### **Authentication Tables**
-- `user` - User accounts and profiles
-- `session` - User sessions
-- `account` - OAuth account links
-- `verification` - Email verification
-
-#### **Subscription Tables**
-- `subscriptions` - User subscription data
-- `subscription_plans` - Available plans
-- `invoices` - Payment history
-
-#### **Content Tables**
-- `videos` - Video projects
-- `video_assets` - Video files and metadata
-- `video_clips` - Video timeline clips
-- `slideshows` - Slideshow projects
-- `slides` - Individual slides
-- `user_image_collections` - User image libraries
-- `user_images` - Uploaded images
-
-#### **Feedback System**
-- `feedback` - User feedback and ratings
+- `user`, `session`, `account`, `verification` (auth)
+- `subscriptions`, `subscription_plans`, `invoices` (payments)
+- `videos`, `video_assets`, `video_clips`, `slideshows`, `slides`, `user_image_collections`, `user_images` (content)
+- `feedback` (feedback system)
 
 ---
 
 ## 🔧 Key Integrations
-
-### **Payment Processing**
 - **Stripe**: Subscription management and payments
-- **Webhooks**: Payment event handling
-
-### **Cloud Services**
 - **Cloudflare R2**: Video and image storage
 - **Cloudinary**: Image processing and optimization
-
-### **AI Services**
 - **OpenAI**: Text generation and processing
 - **ElevenLabs**: Text-to-speech
 - **AssemblyAI**: Audio transcription
-
-### **Analytics & Monitoring**
 - **PostHog**: Product analytics and feature flags
 - **Sentry**: Error tracking and performance monitoring
-
-### **Authentication**
 - **Better Auth**: Modern authentication system
 - **OAuth Providers**: Google, GitHub, etc.
 
@@ -243,31 +185,22 @@ src/components/
 
 ## 🚀 Development Workflow
 
-### **Local Development**
+### Local Development
 ```bash
-# Install dependencies
 bun install
-
-# Start development server
 bun run dev
-
-# Database operations
 bun run db:generate    # Generate migrations
 bun run db:push        # Push schema changes
 ```
 
-### **Docker Deployment**
+### Docker Deployment
 ```bash
-# Build and run with Docker Compose
 docker-compose up --build
-
-# Access services
 # Frontend: http://localhost:3000
 # Backend: http://localhost:3001
 ```
 
-### **Environment Configuration**
-Key environment variables:
+### Environment Configuration
 - `DATABASE_URL` - PostgreSQL connection
 - `STRIPE_SECRET_KEY` - Payment processing
 - `CLOUDFLARE_R2_*` - Cloud storage
@@ -277,18 +210,12 @@ Key environment variables:
 ---
 
 ## 📊 Performance & Optimization
-
-### **Video Optimization**
 - **Preview Optimization**: Lower-resolution previews for faster loading
 - **Streaming**: Optimized video files with proper moov atom placement
 - **CDN**: Cloudflare R2 for global content delivery
-
-### **Frontend Performance**
 - **Next.js 15**: Latest performance optimizations
 - **Turbopack**: Fast development builds
 - **Code Splitting**: Automatic route-based splitting
-
-### **Backend Performance**
 - **Async Rendering**: Non-blocking video processing
 - **Caching**: In-memory render status tracking
 - **Streaming**: Efficient file serving
@@ -296,68 +223,44 @@ Key environment variables:
 ---
 
 ## 🔒 Security Features
-
-### **Authentication & Authorization**
 - **Better Auth**: Modern, secure authentication
 - **Session Management**: Secure session handling
 - **Route Protection**: Middleware-based access control
-
-### **Data Protection**
 - **Input Validation**: Zod schema validation
 - **SQL Injection Prevention**: Drizzle ORM
 - **XSS Protection**: React's built-in protections
-
-### **Payment Security**
 - **Stripe**: PCI-compliant payment processing
 - **Webhook Verification**: Secure payment event handling
 
 ---
 
 ## 📈 Scalability Considerations
-
-### **Horizontal Scaling**
 - **Stateless Backend**: Easy containerization
 - **Database**: PostgreSQL with connection pooling
 - **CDN**: Cloudflare R2 for global content delivery
-
-### **Performance Monitoring**
 - **Sentry**: Real-time error tracking
 - **PostHog**: User behavior analytics
 - **Custom Metrics**: Render performance tracking
-
-### **Future Enhancements**
-- **Serverless Rendering**: AWS Lambda integration
-- **Microservices**: Service decomposition
-- **Caching Layer**: Redis for session and data caching
+- **Serverless Rendering**: AWS Lambda integration (future)
+- **Microservices**: Service decomposition (future)
+- **Caching Layer**: Redis for session and data caching (future)
 
 ---
 
 ## 🛠️ Development Tools
-
-### **Code Quality**
 - **TypeScript**: Type safety and better DX
 - **ESLint**: Code linting and formatting
 - **Prettier**: Code formatting
-
-### **Database Management**
 - **Drizzle ORM**: Type-safe database operations
 - **Drizzle Kit**: Migration and schema management
-
-### **Testing**
-- **Unit Tests**: Component and utility testing
-- **Integration Tests**: API endpoint testing
-- **E2E Tests**: User workflow testing
+- **Unit/Integration/E2E Tests**: Comprehensive testing
 
 ---
 
 ## 📚 Additional Resources
-
-### **Documentation**
 - [README.md](./README.md) - Main project documentation
 - [architecture.md](./architecture.md) - Detailed architecture overview
 - [plan.md](./plan.md) - Development roadmap
-
-### **External Dependencies**
 - [Next.js Documentation](https://nextjs.org/docs)
 - [Remotion Documentation](https://www.remotion.dev/docs)
 - [Drizzle ORM Documentation](https://orm.drizzle.team/)

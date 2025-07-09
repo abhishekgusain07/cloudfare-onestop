@@ -13,6 +13,9 @@ interface VideoCompositionProps {
   musicUrl?: string;
   templateUrl?: string;
   onDurationFound?: (duration: number) => void;
+  // New trimming parameters
+  musicStartTime?: number;
+  musicEndTime?: number;
 }
 
 // Simplified utility function to transform video URL for R2 compatibility
@@ -83,6 +86,8 @@ export const VideoComposition: React.FC<VideoCompositionProps> = ({
   musicVolume,
   templateUrl,
   onDurationFound,
+  musicStartTime,
+  musicEndTime,
 }: VideoCompositionProps) => {
   const { width, height, durationInFrames } = useVideoConfig();
   const frame = useCurrentFrame();
@@ -233,6 +238,8 @@ export const VideoComposition: React.FC<VideoCompositionProps> = ({
         <Audio
           src={musicUrl}
           volume={musicVolume}
+          startFrom={musicStartTime ? Math.floor(musicStartTime * 30) : 0}
+          endAt={musicEndTime ? Math.floor(musicEndTime * 30) : undefined}
         />
       )}
 

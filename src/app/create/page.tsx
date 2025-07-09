@@ -16,6 +16,11 @@ import { videoRenderingClient } from '@/utils/videoRenderingClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ErrorBoundary, MusicErrorBoundary, VideoErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { SessionLoading } from '@/components/ui/LoadingStates';
+import { KeyboardShortcutsHelp, useShortcutsHelp, ShortcutsHelpButton } from '@/components/ui/KeyboardShortcutsHelp';
+import { useEditorState, useMusicState, useVideoState } from '@/hooks/useEditorState';
+import { useMusicKeyboardShortcuts, useEditorKeyboardShortcuts, useAriaLiveRegion } from '@/hooks/useKeyboardShortcuts';
 
 // Define the video parameters interface
 export interface VideoParams {
@@ -28,6 +33,9 @@ export interface VideoParams {
   textOpacity: number;
   musicUrl?: string;
   musicVolume: number;
+  // New trimming parameters
+  musicStartTime?: number;
+  musicEndTime?: number;
 }
 
 // Video interface from the selector
@@ -43,19 +51,16 @@ interface Video {
 
 export default function CreatePage() {
   const router = useRouter();
-  const [videoParams, setVideoParams] = useState<VideoParams>({
-    selectedTemplate: '', // Will be set when video is selected
-    text: 'Your brand message here...',
-    textPosition: 'center',
-    textAlign: 'center',
-    fontSize: 48,
-    textColor: '#ffffff',
-    textOpacity: 1,
-    musicVolume: 0.5,
-  });
   
-  // Selected video state
-  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
+  // Use the new state management hooks
+  const editorState = useEditorState();
+  const musicState = useMusicState(editorState);
+  const videoState = useVideoState(editorState);
+  const { announce } = useAriaLiveRegion();
+  const shortcutsHelp = useShortcutsHelp();
+  
+  // Legacy state for compatibility (gradually migrate these)
+  const { selectedVideo, videoParams } = editorState;
   
   const [isRendering, setIsRendering] = useState(false);
   const [renderProgress, setRenderProgress] = useState(0);
@@ -181,6 +186,12 @@ export default function CreatePage() {
     setVideoParams(prev => ({ ...prev, musicVolume }));
   };
 
+  // Handle music trimming change
+  const handleTrimChange = (startTime: number, endTime: number) => {
+    musicState.handleTrimChange(startTime, endTime);
+    announce(`Audio trimmed to ${Math.round(endTime - startTime)} seconds`);
+  };
+
   // Handle video rendering
   const handleRenderVideo = async () => {
     if (serverStatus !== 'online') {
@@ -282,7 +293,56 @@ export default function CreatePage() {
     setIsRendering(false);
   };
 
+  // Setup keyboard shortcuts
+  const musicShortcuts = useMusicKeyboardShortcuts({
+    onVolumeUp: () => {
+      const newVolume = Math.min(1, videoParams.musicVolume + 0.1);
+      musicState.handleVolumeChange(newVolume);
+      announce(`Volume increased to ${Math.round(newVolume * 100)}%`);
+    },
+    onVolumeDown: () => {
+      const newVolume = Math.max(0, videoParams.musicVolume - 0.1);
+      musicState.handleVolumeChange(newVolume);
+      announce(`Volume decreased to ${Math.round(newVolume * 100)}%`);
+    },
+    onToggleTrimmer: () => {
+      musicState.handleTrimmerToggle(!musicState.showTrimmer);
+      announce(musicState.showTrimmer ? 'Audio trimmer hidden' : 'Audio trimmer shown');
+    },
+    onResetTrim: () => {
+      if (musicState.musicUrl) {
+        musicState.handleTrimChange(0, musicState.audioDuration);
+        announce('Audio trim reset to full track');
+      }
+    },
+    onSave: () => {
+      editorState.saveSession();
+      announce('Session saved');
+    },
+  });
+
+  const editorShortcuts = useEditorKeyboardShortcuts({
+    onSave: () => {
+      editorState.saveSession();
+      announce('Session saved');
+    },
+    onReset: () => {
+      editorState.resetToDefault();
+      announce('Editor reset to default state');
+    },
+    onExport: handleRenderVideo,
+  });
+
+  // Combine all shortcuts for help display
+  const allShortcuts = [...musicShortcuts.shortcuts, ...editorShortcuts.shortcuts];
+
+  // Show loading screen during initial session load
+  if (editorState.isLoading) {
+    return <SessionLoading />;
+  }
+
   return (
+    <ErrorBoundary>
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
         {/* Header */}
       <div className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-40">
@@ -344,7 +404,8 @@ export default function CreatePage() {
                 <div className="w-full max-w-sm mx-auto">
                   <div className="aspect-[9/16] bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl overflow-hidden shadow-2xl ring-1 ring-slate-200">
                     {selectedVideo && template ? (
-                      <Player
+                      <VideoErrorBoundary>
+                        <Player
                         component={VideoComposition}
                         inputProps={{
                           selectedTemplate: videoParams.selectedTemplate,
@@ -356,6 +417,8 @@ export default function CreatePage() {
                           textOpacity: videoParams.textOpacity,
                           musicUrl: videoParams.musicUrl,
                           musicVolume: videoParams.musicVolume,
+                          musicStartTime: videoParams.musicStartTime,
+                          musicEndTime: videoParams.musicEndTime,
                           templateUrl: template.previewUrl, // Use optimized preview for smooth playback
                           onDurationFound: handleDurationFound,
                         }}
@@ -399,6 +462,7 @@ export default function CreatePage() {
                         showPosterWhenPaused={false}
                         showPosterWhenEnded={false}
                       />
+                      </VideoErrorBoundary>
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <div className="text-center text-white p-6">
@@ -481,13 +545,18 @@ export default function CreatePage() {
                     <TabsContent value="music" className="h-full m-0">
                       <ScrollArea className="h-full">
                         <div className="space-y-6 pr-2">
-              <MusicSelector 
-                selectedMusic={videoParams.musicUrl}
-                volume={videoParams.musicVolume}
-                onMusicChange={handleMusicSelect}
-                onVolumeChange={handleVolumeChange}
-              />
-            </div>
+                          <MusicErrorBoundary>
+                            <MusicSelector 
+                              selectedMusic={videoParams.musicUrl}
+                              volume={videoParams.musicVolume}
+                              onMusicChange={handleMusicSelect}
+                              onVolumeChange={handleVolumeChange}
+                              onTrimChange={handleTrimChange}
+                              trimStart={videoParams.musicStartTime}
+                              trimEnd={videoParams.musicEndTime}
+                            />
+                          </MusicErrorBoundary>
+                        </div>
                       </ScrollArea>
                     </TabsContent>
 
@@ -614,6 +683,24 @@ export default function CreatePage() {
           </div>
         </div>
       </div>
+      
+      {/* Keyboard Shortcuts Help */}
+      <KeyboardShortcutsHelp
+        shortcuts={allShortcuts}
+        isOpen={shortcutsHelp.isOpen}
+        onClose={shortcutsHelp.closeHelp}
+      />
+      
+      {/* Floating Help Button */}
+      <ShortcutsHelpButton onClick={shortcutsHelp.toggleHelp} />
+      
+      {/* Session Status Indicator */}
+      {editorState.hasUnsavedChanges && (
+        <div className="fixed bottom-6 left-6 px-3 py-2 bg-yellow-500 text-white text-sm rounded-lg shadow-lg">
+          Unsaved changes
+        </div>
+      )}
     </div>
+    </ErrorBoundary>
   );
 }

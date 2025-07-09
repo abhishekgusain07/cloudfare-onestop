@@ -62,6 +62,9 @@ interface RenderRequest {
     textColor: string;
     musicUrl?: string;
     musicVolume: number;
+    // New trimming parameters
+    musicStartTime?: number;
+    musicEndTime?: number;
   };
   template: {
     id: string;

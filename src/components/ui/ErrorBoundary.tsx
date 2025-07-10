@@ -220,7 +220,7 @@ export const MusicErrorBoundary: React.FC<{ children: ReactNode }> = ({ children
   return (
     <ErrorBoundary
       fallback={
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mx-auto">
           <div className="flex items-center space-x-3">
             <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>

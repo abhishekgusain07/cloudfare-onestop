@@ -32,9 +32,9 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [presetErrors, setPresetErrors] = useState<Set<string>>(new Set());
   const [audioDuration, setAudioDuration] = useState<number>(30);
-  const [showTrimmer, setShowTrimmer] = useState(false);
+  const [showTrimmer, setShowTrimmer] = useState(true);
   const audioRef = useRef<HTMLAudioElement>(null);
-
+  console.log('musicUrl bhenchod bhenchod ', musicUrl);
   // Preset music options
   const presetMusic = [
     { id: 'upbeat', name: 'Upbeat Pop', url: '/music/upbeat-pop.mp3' },
@@ -70,7 +70,8 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
       setCurrentFile(file);
       const url = URL.createObjectURL(file);
       onMusicChange(url);
-      setShowTrimmer(false);
+      // Ensure trimmer is visible when music is selected
+      setShowTrimmer(true);
       // Load audio duration
       loadAudioDuration(url);
       setIsLoading(false);
@@ -85,8 +86,8 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
     setError(null);
     onMusicChange(url);
     setIsPlaying(false);
-    // Reset trimming state
-    setShowTrimmer(false);
+    // Ensure trimmer is visible when music is selected
+    setShowTrimmer(true);
     // Load audio duration
     loadAudioDuration(url);
   };
@@ -153,8 +154,8 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
   };
 
   return (
-    <div className="bg-slate-900/90 backdrop-blur-sm rounded-lg p-6 border border-slate-700/50">
-      <h3 className="text-lg font-semibold mb-4 text-slate-100">Background Music</h3>
+    <div className="bg-card/90 backdrop-blur-sm rounded-lg p-6 border border-border/50 max-w-3xl mx-auto">
+      <h3 className="text-lg font-semibold mb-4 text-foreground">Background Music</h3>
       
       <div className="space-y-4">
         {/* Error Display */}
@@ -171,12 +172,12 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
 
         {/* Current Music Display */}
         {musicUrl && (
-          <div className="bg-slate-800/80 rounded-lg p-4 border border-slate-700/30">
+          <div className="bg-muted/80 rounded-lg p-4 border border-border/30">
             <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-3 min-w-0 flex-1">
                 <button
                   onClick={togglePlayback}
-                  className="w-10 h-10 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105 shadow-lg"
+                  className="w-10 h-10 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105 shadow-lg flex-shrink-0"
                 >
                   {isPlaying ? (
                     <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
@@ -188,11 +189,14 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
                     </svg>
                   )}
                 </button>
-                <div>
-                  <div className="text-sm font-medium text-slate-100">
+                <div className="min-w-0 flex-1">
+                  <div 
+                    className="text-sm font-medium text-foreground truncate" 
+                    title={currentFile ? currentFile.name : 'Preset Music'}
+                  >
                     {currentFile ? currentFile.name : 'Preset Music'}
                   </div>
-                  <div className="text-xs text-slate-400">
+                  <div className="text-xs text-muted-foreground">
                     {currentFile ? 'Custom Upload' : 'Built-in Track'}
                   </div>
                 </div>
@@ -209,15 +213,18 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
             </div>
 
             {/* Trim Controls */}
-            <div className="flex justify-between items-center">
-              <div className="text-sm text-slate-300">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+              <div className="text-sm text-muted-foreground">
                 Duration: {Math.round(audioDuration)}s
               </div>
               <button
                 onClick={() => setShowTrimmer(!showTrimmer)}
-                className="px-3 py-1 bg-purple-600 hover:bg-purple-700 rounded text-sm text-white transition-colors"
+                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 rounded-lg text-sm text-white transition-all duration-200 shadow-lg hover:shadow-purple-500/25 hover:scale-105 flex items-center justify-center space-x-2"
               >
-                {showTrimmer ? 'Hide' : 'Trim Audio'}
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M7.5,5.6L5,7L6.4,8.5L8.9,7.1L7.5,5.6M12,1V3H11V1H12M18.5,5.6L17.1,7.1L19.6,8.5L21,7L18.5,5.6M4.5,10.5V11.5H2.5V10.5H4.5M21.5,10.5H19.5V11.5H21.5V10.5M6.4,14.5L5,16L7.5,17.4L8.9,15.9L6.4,14.5M17.1,15.9L18.5,17.4L21,16L19.6,14.5L17.1,15.9M11,21H12V23H11V21Z"/>
+                </svg>
+                <span>{showTrimmer ? 'Hide Trimmer' : 'Show Trimmer'}</span>
               </button>
             </div>
 
@@ -249,7 +256,7 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
 
         {/* Volume Control */}
         <div>
-          <label className="block text-sm font-medium mb-2 text-slate-200">
+          <label className="block text-sm font-medium mb-2 text-foreground">
             Music Volume: {Math.round(volume * 100)}%
           </label>
           <input
@@ -259,9 +266,9 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
             step="0.05"
             value={volume}
             onChange={(e) => onVolumeChange(Number(e.target.value))}
-            className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
+            className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer slider"
           />
-          <div className="flex justify-between text-xs text-slate-400 mt-1">
+          <div className="flex justify-between text-xs text-muted-foreground mt-1">
             <span>0%</span>
             <span>100%</span>
           </div>
@@ -269,33 +276,35 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
 
         {/* Upload Custom Music */}
         <div>
-          <label className="block text-sm font-medium mb-2 text-slate-200">
+          <label className="block text-sm font-medium mb-2 text-foreground">
             Upload Custom Music
           </label>
-          <div className="flex items-center space-x-3">
+          <div className="w-full">
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isLoading}
-              className={`flex-1 border border-slate-600/50 rounded-lg px-4 py-3 text-center transition-all duration-200 ${
+              className={`w-full border-2 border-dashed rounded-lg px-6 py-4 text-center transition-all duration-200 ${
                 isLoading 
-                  ? 'bg-slate-800/50 border-slate-600/30 cursor-not-allowed' 
-                  : 'bg-slate-800/80 hover:bg-slate-700/80 hover:border-slate-500/70'
+                  ? 'border-border/30 bg-muted/50 cursor-not-allowed' 
+                  : 'border-border/50 bg-muted/80 hover:bg-muted/90 hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/10'
               }`}
             >
-              <div className="flex items-center justify-center space-x-2 text-slate-200">
+              <div className="flex flex-col items-center justify-center space-y-2 text-foreground">
                 {isLoading ? (
                   <>
-                    <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-8 h-8 animate-spin text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
-                    <span>Processing...</span>
+                    <span className="text-sm font-medium">Processing...</span>
+                    <span className="text-xs text-muted-foreground">Please wait</span>
                   </>
                 ) : (
                   <>
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                    <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                     </svg>
-                    <span>Choose Audio File</span>
+                    <span className="text-sm font-medium">Choose Audio File</span>
+                    <span className="text-xs text-muted-foreground">Click to browse or drag & drop</span>
                   </>
                 )}
               </div>
@@ -308,17 +317,17 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
               className="hidden"
             />
           </div>
-          <div className="text-xs text-slate-400 mt-1">
+          <div className="text-xs text-muted-foreground mt-1">
             Supported formats: MP3, WAV, M4A, OGG
           </div>
         </div>
 
         {/* Preset Music Options */}
         <div>
-          <label className="block text-sm font-medium mb-2 text-slate-200">
+          <label className="block text-sm font-medium mb-2 text-foreground">
             Or Choose Preset Music
           </label>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {presetMusic.map((preset) => {
               const hasError = presetErrors.has(preset.id);
               return (
@@ -331,7 +340,7 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
                         ? 'border-red-600/50 bg-red-900/20 text-red-400 cursor-not-allowed'
                         : musicUrl === preset.url
                         ? 'border-purple-400 bg-purple-500/20 text-purple-400 shadow-lg shadow-purple-400/25 hover:scale-105'
-                        : 'border-slate-600/50 bg-slate-800/80 text-slate-300 hover:border-slate-500/70 hover:bg-slate-700/80 hover:scale-105'
+                        : 'border-border/50 bg-muted/80 text-muted-foreground hover:border-border/70 hover:bg-muted/90 hover:scale-105'
                     }`}
                   >
                     <div className="flex items-center space-x-2">
@@ -362,7 +371,19 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
 
         {/* Audio Trimming Interface */}
         {musicUrl && showTrimmer && (
-          <div className="space-y-4">
+          <div className="bg-gradient-to-br from-purple-900/20 to-blue-900/20 rounded-lg p-4 border border-purple-500/30 space-y-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-2">
+                <svg className="w-5 h-5 text-purple-400" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/>
+                </svg>
+                <h4 className="text-sm font-semibold text-purple-200">Audio Trimmer</h4>
+              </div>
+              <div className="text-xs text-purple-300 bg-purple-900/40 px-2 py-1 rounded">
+                Trim: {Math.round(trimStart)}s - {Math.round(trimEnd || audioDuration)}s
+              </div>
+            </div>
+            
             <AudioTrimmer
               audioUrl={musicUrl}
               duration={audioDuration}
@@ -376,6 +397,20 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
               duration={audioDuration}
               onTimeChange={handleTrimChange}
             />
+            
+            <div className="flex justify-between items-center pt-2 border-t border-purple-500/20">
+              <div className="text-xs text-purple-300">
+                Trimmed Duration: {Math.round((trimEnd || audioDuration) - trimStart)}s
+              </div>
+              <button
+                onClick={() => {
+                  handleTrimChange(0, audioDuration);
+                }}
+                className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
+              >
+                Reset Trim
+              </button>
+            </div>
           </div>
         )}
 

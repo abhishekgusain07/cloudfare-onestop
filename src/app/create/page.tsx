@@ -21,6 +21,7 @@ import { SessionLoading } from '@/components/ui/LoadingStates';
 import { KeyboardShortcutsHelp, useShortcutsHelp, ShortcutsHelpButton } from '@/components/ui/KeyboardShortcutsHelp';
 import { useEditorState, useMusicState, useVideoState } from '@/hooks/useEditorState';
 import { useMusicKeyboardShortcuts, useEditorKeyboardShortcuts, useAriaLiveRegion } from '@/hooks/useKeyboardShortcuts';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 // Define the video parameters interface
 export interface VideoParams {
@@ -72,11 +73,9 @@ export default function CreatePage() {
 
   // Handle video selection from VideoSelector
   const handleVideoSelect = (video: Video) => {
-    setSelectedVideo(video);
-    setVideoParams(prev => ({ 
-      ...prev, 
-      selectedTemplate: video.filename 
-    }));
+    console.log('handleVideoSelect called with:', video);
+    console.log('editorState.setSelectedVideo:', typeof editorState.setSelectedVideo);
+    editorState.setSelectedVideo(video);
     console.log('Selected video:', video);
   };
 
@@ -148,42 +147,42 @@ export default function CreatePage() {
 
   // Handle text change
   const handleTextChange = (text: string) => {
-    setVideoParams(prev => ({ ...prev, text }));
+    editorState.updateVideoParams({ text });
   };
 
   // Handle text position change
   const handlePositionChange = (textPosition: 'top' | 'center' | 'bottom') => {
-    setVideoParams(prev => ({ ...prev, textPosition }));
+    editorState.updateVideoParams({ textPosition });
   };
 
   // Handle text alignment change
   const handleAlignmentChange = (textAlign: 'left' | 'center' | 'right') => {
-    setVideoParams(prev => ({ ...prev, textAlign }));
+    editorState.updateVideoParams({ textAlign });
   };
 
   // Handle font size change
   const handleFontSizeChange = (fontSize: number) => {
-    setVideoParams(prev => ({ ...prev, fontSize }));
+    editorState.updateVideoParams({ fontSize });
   };
 
   // Handle text color change
   const handleColorChange = (textColor: string) => {
-    setVideoParams(prev => ({ ...prev, textColor }));
+    editorState.updateVideoParams({ textColor });
   };
 
   // Handle text opacity change
   const handleOpacityChange = (textOpacity: number) => {
-    setVideoParams(prev => ({ ...prev, textOpacity }));
+    editorState.updateVideoParams({ textOpacity });
   };
 
   // Handle music selection
   const handleMusicSelect = (musicUrl?: string) => {
-    setVideoParams(prev => ({ ...prev, musicUrl }));
+    editorState.updateVideoParams({ musicUrl });
   };
 
   // Handle music volume change
   const handleVolumeChange = (musicVolume: number) => {
-    setVideoParams(prev => ({ ...prev, musicVolume }));
+    editorState.updateVideoParams({ musicVolume });
   };
 
   // Handle music trimming change
@@ -343,53 +342,54 @@ export default function CreatePage() {
 
   return (
     <ErrorBoundary>
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-background">
         {/* Header */}
-      <div className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-40">
+      <div className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 AI UGC Studio
           </h1>
-              <p className="text-slate-600 text-sm">Create viral content in minutes</p>
+              <p className="text-muted-foreground text-sm">Create viral content in minutes</p>
             </div>
             
-            {/* Server Status */}
+            {/* Server Status & Theme Toggle */}
             <div className="flex items-center gap-3">
           {serverStatus === 'online' && (
-                <Badge variant="outline" className="border-green-200 text-green-700 bg-green-50">
+                <Badge variant="outline" className="border-green-500/50 text-green-600 bg-green-500/10">
                   <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
                   Server Online
                 </Badge>
           )}
           {serverStatus === 'offline' && (
-                <Badge variant="outline" className="border-red-200 text-red-700 bg-red-50">
+                <Badge variant="outline" className="border-red-500/50 text-red-600 bg-red-500/10">
                   <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
                   Server Offline
                 </Badge>
               )}
               {serverStatus === 'checking' && (
-                <Badge variant="outline" className="border-yellow-200 text-yellow-700 bg-yellow-50">
+                <Badge variant="outline" className="border-yellow-500/50 text-yellow-600 bg-yellow-500/10">
                   <div className="w-2 h-2 bg-yellow-500 rounded-full mr-2 animate-pulse"></div>
                   Checking...
                 </Badge>
               )}
+              <ThemeToggle />
             </div>
           </div>
         </div>
       </div>
 
       {/* Main Content - Two Panel Layout */}
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="w-full mx-auto p-6">
         <div className="grid grid-cols-12 gap-6 h-[calc(100vh-140px)]">
           
           {/* Left Panel - Video Preview */}
           <div className="col-span-6">
-            <Card className="h-full border-0 shadow-xl bg-white/70 backdrop-blur-sm">
+            <Card className="h-full border-0 shadow-xl bg-card/70 backdrop-blur-sm">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg text-slate-800">Video Preview</CardTitle>
+                  <CardTitle className="text-lg text-foreground">Video Preview</CardTitle>
                   <div className="flex gap-2">
                     <Badge variant="secondary" className="text-xs">
                       {Math.round(actualVideoDuration)}s
@@ -402,7 +402,7 @@ export default function CreatePage() {
               </CardHeader>
                             <CardContent className="flex-1 flex items-center justify-center p-6">
                 <div className="w-full max-w-sm mx-auto">
-                  <div className="aspect-[9/16] bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl overflow-hidden shadow-2xl ring-1 ring-slate-200">
+                  <div className="aspect-[9/16] bg-gradient-to-br from-muted to-card rounded-2xl overflow-hidden shadow-2xl ring-1 ring-border">
                     {selectedVideo && template ? (
                       <VideoErrorBoundary>
                         <Player
@@ -443,12 +443,12 @@ export default function CreatePage() {
                         doubleClickToFullscreen={false}
                         moveToBeginningWhenEnded={false}
                         renderLoading={() => (
-                          <div className="w-full h-full flex items-center justify-center bg-slate-800">
-                            <div className="animate-pulse text-white">Loading...</div>
+                          <div className="w-full h-full flex items-center justify-center bg-muted">
+                            <div className="animate-pulse text-foreground">Loading...</div>
                           </div>
                         )}
                         errorFallback={({ error }) => (
-                          <div className="w-full h-full flex items-center justify-center bg-red-900 text-white p-4">
+                          <div className="w-full h-full flex items-center justify-center bg-red-500/10 text-red-600 p-4">
                             <div className="text-center">
                               <div className="text-sm">Preview Error</div>
                               <div className="text-xs opacity-75 mt-1">{error.message}</div>
@@ -465,14 +465,14 @@ export default function CreatePage() {
                       </VideoErrorBoundary>
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <div className="text-center text-white p-6">
-                          <div className="w-16 h-16 mx-auto mb-4 bg-white/20 rounded-full flex items-center justify-center">
+                        <div className="text-center text-foreground p-6">
+                          <div className="w-16 h-16 mx-auto mb-4 bg-muted/50 rounded-full flex items-center justify-center">
                             <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
                               <path d="M8 5v14l11-7z"/>
                             </svg>
                           </div>
                           <h3 className="text-lg font-semibold mb-2">Select a Video</h3>
-                          <p className="text-sm text-white/70">Choose a video template from the Video tab to start creating</p>
+                          <p className="text-sm text-muted-foreground">Choose a video template from the Video tab to start creating</p>
                         </div>
                       </div>
                     )}
@@ -484,19 +484,19 @@ export default function CreatePage() {
 
           {/* Right Panel - Customization */}
           <div className="col-span-6">
-            <Card className="h-full border-0 shadow-xl bg-white/70 backdrop-blur-sm">
+            <Card className="h-full border-0 shadow-xl bg-card/70 backdrop-blur-sm">
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg text-slate-800">Customize</CardTitle>
-                <p className="text-sm text-slate-600">Make it your own</p>
+                <CardTitle className="text-lg text-foreground">Customize</CardTitle>
+                <p className="text-sm text-muted-foreground">Make it your own</p>
               </CardHeader>
               <CardContent className="flex-1 overflow-hidden">
                 <Tabs defaultValue="video" className="h-full flex flex-col">
-                  <TabsList className="grid w-full grid-cols-5 mb-4 h-10 p-1 bg-slate-100 rounded-lg">
-                    <TabsTrigger value="video" className="text-xs px-3 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">Video</TabsTrigger>
-                    <TabsTrigger value="text" className="text-xs px-3 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">Text</TabsTrigger>
-                    <TabsTrigger value="position" className="text-xs px-3 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">Position</TabsTrigger>
-                    <TabsTrigger value="music" className="text-xs px-3 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">Music</TabsTrigger>
-                    <TabsTrigger value="render" className="text-xs px-3 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">Render</TabsTrigger>
+                  <TabsList className="grid w-full grid-cols-5 mb-4 h-10 p-1 bg-muted rounded-lg">
+                    <TabsTrigger value="video" className="text-xs px-3 py-2 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">Video</TabsTrigger>
+                    <TabsTrigger value="text" className="text-xs px-3 py-2 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">Text</TabsTrigger>
+                    <TabsTrigger value="position" className="text-xs px-3 py-2 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">Position</TabsTrigger>
+                    <TabsTrigger value="music" className="text-xs px-3 py-2 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">Music</TabsTrigger>
+                    <TabsTrigger value="render" className="text-xs px-3 py-2 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">Render</TabsTrigger>
                   </TabsList>
 
                   <div className="flex-1 overflow-hidden">
@@ -544,10 +544,10 @@ export default function CreatePage() {
 
                     <TabsContent value="music" className="h-full m-0">
                       <ScrollArea className="h-full">
-                        <div className="space-y-6 pr-2">
+                        <div className="space-y-6 pr-2 overflow-y-auto mx-auto">
                           <MusicErrorBoundary>
                             <MusicSelector 
-                              selectedMusic={videoParams.musicUrl}
+                              musicUrl={videoParams.musicUrl}
                               volume={videoParams.musicVolume}
                               onMusicChange={handleMusicSelect}
                               onVolumeChange={handleVolumeChange}
@@ -573,27 +573,27 @@ export default function CreatePage() {
                                     <span className="text-sm font-medium text-blue-600">{renderProgress}%</span>
                   </div>
                                 </div>
-                                <h3 className="text-lg font-semibold text-slate-800 mb-2">Rendering Your Video</h3>
-                                <p className="text-slate-600 text-sm">This usually takes 2-5 minutes</p>
+                                <h3 className="text-lg font-semibold text-foreground mb-2">Rendering Your Video</h3>
+                                <p className="text-muted-foreground text-sm">This usually takes 2-5 minutes</p>
                               </div>
                               <Progress value={renderProgress} className="w-full h-2" />
                 </div>
               ) : renderStatus === 'completed' ? (
                             <div className="text-center space-y-6">
-                              <div className="w-20 h-20 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-4">
+                              <div className="w-20 h-20 mx-auto bg-green-500/10 rounded-full flex items-center justify-center mb-4">
                                 <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                 </svg>
                               </div>
                               <div>
-                                <h3 className="text-lg font-semibold text-slate-800 mb-2">Video Ready!</h3>
-                                <p className="text-slate-600 text-sm mb-6">Your viral content is ready to download</p>
+                                <h3 className="text-lg font-semibold text-foreground mb-2">Video Ready!</h3>
+                                <p className="text-muted-foreground text-sm mb-6">Your viral content is ready to download</p>
                   </div>
                               <div className="space-y-3">
                     <Button 
                       onClick={handleDownloadVideo}
                       disabled={!downloadUrl}
-                                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                                  className="w-full bg-blue-600 hover:bg-blue-700"
                                   size="lg"
                     >
                       Download Video
@@ -609,14 +609,14 @@ export default function CreatePage() {
                 </div>
               ) : renderStatus === 'failed' ? (
                             <div className="text-center space-y-6">
-                              <div className="w-20 h-20 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4">
+                              <div className="w-20 h-20 mx-auto bg-red-500/10 rounded-full flex items-center justify-center mb-4">
                                 <svg className="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                               </div>
                               <div>
-                                <h3 className="text-lg font-semibold text-slate-800 mb-2">Render Failed</h3>
-                                <p className="text-slate-600 text-sm mb-6">Something went wrong. Please try again.</p>
+                                <h3 className="text-lg font-semibold text-foreground mb-2">Render Failed</h3>
+                                <p className="text-muted-foreground text-sm mb-6">Something went wrong. Please try again.</p>
                   </div>
                               <div className="space-y-3">
                     <Button 
@@ -639,34 +639,34 @@ export default function CreatePage() {
               ) : (
                             <div className="space-y-6">
                               <div className="text-center">
-                                <div className="w-20 h-20 mx-auto bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mb-4">
+                                <div className="w-20 h-20 mx-auto bg-blue-500/10 rounded-full flex items-center justify-center mb-4">
                                   <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4V2a1 1 0 011-1h1a1 1 0 011 1v2M7 4h10M7 4v16M17 4v16M17 4V2a1 1 0 011-1h1a1 1 0 011 1v2M5 8h14M5 12h14M5 16h14" />
                                   </svg>
                                 </div>
-                                <h3 className="text-lg font-semibold text-slate-800 mb-2">Ready to Render</h3>
-                                <p className="text-slate-600 text-sm mb-6">Create your high-quality MP4 video</p>
+                                <h3 className="text-lg font-semibold text-foreground mb-2">Ready to Render</h3>
+                                <p className="text-muted-foreground text-sm mb-6">Create your high-quality MP4 video</p>
                               </div>
                               
-                              <div className="bg-slate-50 rounded-xl p-4 space-y-2">
+                              <div className="bg-muted rounded-xl p-4 space-y-2">
                                 <div className="flex justify-between text-sm">
-                                  <span className="text-slate-600">Quality:</span>
-                                  <span className="font-medium">1080x1920 HD</span>
+                                  <span className="text-muted-foreground">Quality:</span>
+                                  <span className="font-medium text-foreground">1080x1920 HD</span>
                                 </div>
                                 <div className="flex justify-between text-sm">
-                                  <span className="text-slate-600">Format:</span>
-                                  <span className="font-medium">MP4 H.264</span>
+                                  <span className="text-muted-foreground">Format:</span>
+                                  <span className="font-medium text-foreground">MP4 H.264</span>
                                 </div>
                                 <div className="flex justify-between text-sm">
-                                  <span className="text-slate-600">Est. Time:</span>
-                                  <span className="font-medium">2-5 minutes</span>
+                                  <span className="text-muted-foreground">Est. Time:</span>
+                                  <span className="font-medium text-foreground">2-5 minutes</span>
                                 </div>
                               </div>
                               
                   <Button 
                     onClick={handleRenderVideo} 
                                 disabled={serverStatus !== 'online'}
-                                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                                className="w-full bg-blue-600 hover:bg-blue-700"
                     size="lg"
                   >
                                 {serverStatus !== 'online' ? 'Server Offline' : 'Render Video'}

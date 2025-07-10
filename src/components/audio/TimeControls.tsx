@@ -127,23 +127,23 @@ export const TimeControls: React.FC<TimeControlsProps> = ({
   };
 
   return (
-    <div className={`bg-slate-800/80 rounded-lg p-4 border border-slate-700/50 ${className}`}>
-      <h5 className="text-sm font-medium text-slate-200 mb-3">Precise Time Controls</h5>
+    <div className={`bg-muted/80 rounded-lg p-4 border border-border/50 ${className}`}>
+      <h5 className="text-sm font-medium text-foreground mb-3">Precise Time Controls</h5>
       
       <div className="grid grid-cols-2 gap-4">
         {/* Start Time */}
         <div className="space-y-2">
-          <label className="block text-xs font-medium text-slate-300">Start Time</label>
+          <label className="block text-xs font-medium text-muted-foreground">Start Time</label>
           <div className="relative">
             <input
               type="text"
               value={formatTimeForInput(localStartTime)}
               onChange={handleStartTimeChange}
               placeholder="MM:SS.MS"
-              className={`w-full px-3 py-2 bg-slate-700/80 border rounded-lg text-sm font-mono text-slate-200 focus:outline-none focus:ring-2 transition-colors ${
+              className={`w-full px-3 py-2 bg-muted/80 border rounded-lg text-sm font-mono text-foreground focus:outline-none focus:ring-2 transition-colors ${
                 startError 
                   ? 'border-red-500 focus:ring-red-500' 
-                  : 'border-slate-600 focus:ring-purple-500'
+                  : 'border-border focus:ring-purple-500'
               }`}
             />
             {startError && (
@@ -157,28 +157,28 @@ export const TimeControls: React.FC<TimeControlsProps> = ({
           <div className="flex space-x-1">
             <button
               onClick={() => adjustStartTime(-1)}
-              className="px-2 py-1 bg-slate-600 hover:bg-slate-500 rounded text-xs text-slate-200 transition-colors"
+              className="px-2 py-1 bg-muted hover:bg-muted/80 rounded text-xs text-foreground transition-colors"
               title="Subtract 1 second"
             >
               -1s
             </button>
             <button
               onClick={() => adjustStartTime(-0.1)}
-              className="px-2 py-1 bg-slate-600 hover:bg-slate-500 rounded text-xs text-slate-200 transition-colors"
+              className="px-2 py-1 bg-muted hover:bg-muted/80 rounded text-xs text-foreground transition-colors"
               title="Subtract 0.1 seconds"
             >
               -0.1s
             </button>
             <button
               onClick={() => adjustStartTime(0.1)}
-              className="px-2 py-1 bg-slate-600 hover:bg-slate-500 rounded text-xs text-slate-200 transition-colors"
+              className="px-2 py-1 bg-muted hover:bg-muted/80 rounded text-xs text-foreground transition-colors"
               title="Add 0.1 seconds"
             >
               +0.1s
             </button>
             <button
               onClick={() => adjustStartTime(1)}
-              className="px-2 py-1 bg-slate-600 hover:bg-slate-500 rounded text-xs text-slate-200 transition-colors"
+              className="px-2 py-1 bg-muted hover:bg-muted/80 rounded text-xs text-foreground transition-colors"
               title="Add 1 second"
             >
               +1s
@@ -188,17 +188,17 @@ export const TimeControls: React.FC<TimeControlsProps> = ({
 
         {/* End Time */}
         <div className="space-y-2">
-          <label className="block text-xs font-medium text-slate-300">End Time</label>
+          <label className="block text-xs font-medium text-muted-foreground">End Time</label>
           <div className="relative">
             <input
               type="text"
               value={formatTimeForInput(localEndTime)}
               onChange={handleEndTimeChange}
               placeholder="MM:SS.MS"
-              className={`w-full px-3 py-2 bg-slate-700/80 border rounded-lg text-sm font-mono text-slate-200 focus:outline-none focus:ring-2 transition-colors ${
+              className={`w-full px-3 py-2 bg-muted/80 border rounded-lg text-sm font-mono text-foreground focus:outline-none focus:ring-2 transition-colors ${
                 endError 
                   ? 'border-red-500 focus:ring-red-500' 
-                  : 'border-slate-600 focus:ring-purple-500'
+                  : 'border-border focus:ring-purple-500'
               }`}
             />
             {endError && (
@@ -212,28 +212,28 @@ export const TimeControls: React.FC<TimeControlsProps> = ({
           <div className="flex space-x-1">
             <button
               onClick={() => adjustEndTime(-1)}
-              className="px-2 py-1 bg-slate-600 hover:bg-slate-500 rounded text-xs text-slate-200 transition-colors"
+              className="px-2 py-1 bg-muted hover:bg-muted/80 rounded text-xs text-foreground transition-colors"
               title="Subtract 1 second"
             >
               -1s
             </button>
             <button
               onClick={() => adjustEndTime(-0.1)}
-              className="px-2 py-1 bg-slate-600 hover:bg-slate-500 rounded text-xs text-slate-200 transition-colors"
+              className="px-2 py-1 bg-muted hover:bg-muted/80 rounded text-xs text-foreground transition-colors"
               title="Subtract 0.1 seconds"
             >
               -0.1s
             </button>
             <button
               onClick={() => adjustEndTime(0.1)}
-              className="px-2 py-1 bg-slate-600 hover:bg-slate-500 rounded text-xs text-slate-200 transition-colors"
+              className="px-2 py-1 bg-muted hover:bg-muted/80 rounded text-xs text-foreground transition-colors"
               title="Add 0.1 seconds"
             >
               +0.1s
             </button>
             <button
               onClick={() => adjustEndTime(1)}
-              className="px-2 py-1 bg-slate-600 hover:bg-slate-500 rounded text-xs text-slate-200 transition-colors"
+              className="px-2 py-1 bg-muted hover:bg-muted/80 rounded text-xs text-foreground transition-colors"
               title="Add 1 second"
             >
               +1s
@@ -243,21 +243,21 @@ export const TimeControls: React.FC<TimeControlsProps> = ({
       </div>
 
       {/* Duration Display */}
-      <div className="mt-4 pt-3 border-t border-slate-700/50">
-        <div className="flex justify-between items-center text-xs text-slate-400">
+      <div className="mt-4 pt-3 border-t border-border/50">
+        <div className="flex justify-between items-center text-xs text-muted-foreground">
           <span>Selection Duration:</span>
           <span className="font-mono text-purple-400">
             {formatTimeForInput(localEndTime - localStartTime)}
           </span>
         </div>
-        <div className="flex justify-between items-center text-xs text-slate-400 mt-1">
+        <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
           <span>Total Duration:</span>
           <span className="font-mono">{formatTimeForInput(duration)}</span>
         </div>
       </div>
 
       {/* Format Help */}
-      <div className="mt-3 text-xs text-slate-500">
+      <div className="mt-3 text-xs text-muted-foreground">
         <p>Time format: MM:SS.MS (e.g., 01:23.45 = 1 minute, 23.45 seconds)</p>
       </div>
     </div>

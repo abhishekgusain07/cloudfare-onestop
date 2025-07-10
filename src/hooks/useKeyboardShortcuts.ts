@@ -21,7 +21,7 @@ interface UseKeyboardShortcutsOptions {
 export const useKeyboardShortcuts = ({
   shortcuts,
   enabled = true,
-  target = document,
+  target,
 }: UseKeyboardShortcutsOptions) => {
   const shortcutsRef = useRef(shortcuts);
   
@@ -53,10 +53,11 @@ export const useKeyboardShortcuts = ({
   }, [enabled]);
 
   useEffect(() => {
-    if (!enabled) return;
-
-    target.addEventListener('keydown', handleKeyDown);
-    return () => target.removeEventListener('keydown', handleKeyDown);
+    if (!enabled || typeof window === 'undefined') return;
+    
+    const eventTarget = target || document;
+    eventTarget.addEventListener('keydown', handleKeyDown);
+    return () => eventTarget.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown, enabled, target]);
 
   return {
@@ -175,6 +176,8 @@ export const useEditorKeyboardShortcuts = (handlers: {
 
 // Accessibility helper for screen readers
 export const announceToScreenReader = (message: string) => {
+  if (typeof window === 'undefined') return;
+  
   const announcement = document.createElement('div');
   announcement.setAttribute('aria-live', 'polite');
   announcement.setAttribute('aria-atomic', 'true');
@@ -193,7 +196,9 @@ export const useFocusManagement = () => {
   const focusElementRef = useRef<HTMLElement | null>(null);
 
   const saveFocus = useCallback(() => {
-    focusElementRef.current = document.activeElement as HTMLElement;
+    if (typeof window !== 'undefined') {
+      focusElementRef.current = document.activeElement as HTMLElement;
+    }
   }, []);
 
   const restoreFocus = useCallback(() => {
@@ -214,12 +219,12 @@ export const useFocusManagement = () => {
       if (e.key !== 'Tab') return;
 
       if (e.shiftKey) {
-        if (document.activeElement === firstElement) {
+        if (typeof window !== 'undefined' && document.activeElement === firstElement) {
           lastElement.focus();
           e.preventDefault();
         }
       } else {
-        if (document.activeElement === lastElement) {
+        if (typeof window !== 'undefined' && document.activeElement === lastElement) {
           firstElement.focus();
           e.preventDefault();
         }
@@ -249,7 +254,7 @@ export const useAriaLiveRegion = () => {
 
   useEffect(() => {
     // Create live region if it doesn't exist
-    if (!liveRegionRef.current) {
+    if (!liveRegionRef.current && typeof window !== 'undefined') {
       const liveRegion = document.createElement('div');
       liveRegion.setAttribute('aria-live', 'polite');
       liveRegion.setAttribute('aria-atomic', 'true');
@@ -319,6 +324,8 @@ export const useReducedMotion = () => {
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     setPrefersReducedMotion(mediaQuery.matches);
 

@@ -125,16 +125,16 @@ export const AudioTrimmer: React.FC<AudioTrimmerProps> = ({
   };
 
   return (
-    <div className={`bg-slate-900/90 backdrop-blur-sm rounded-lg p-6 border border-slate-700/50 ${className}`}>
+    <div className={`bg-card/90 backdrop-blur-sm rounded-lg p-6 border border-border/50 ${className}`}>
       <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h4 className="text-lg font-semibold text-slate-100">Audio Trimmer</h4>
+          <h4 className="text-lg font-semibold text-foreground">Audio Trimmer</h4>
           <div className="flex items-center space-x-3">
             <button
               onClick={handlePlaySegment}
               disabled={!audioUrl}
-              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-lg text-white font-medium transition-colors"
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-muted disabled:cursor-not-allowed rounded-lg text-white font-medium transition-colors"
             >
               <div className="flex items-center space-x-2">
                 {isPlaying ? (
@@ -149,7 +149,7 @@ export const AudioTrimmer: React.FC<AudioTrimmerProps> = ({
                 <span>Preview</span>
               </div>
             </button>
-            <div className="text-sm text-slate-400">
+            <div className="text-sm text-muted-foreground">
               {formatTime(endTime - startTime)} selected
             </div>
           </div>
@@ -169,13 +169,13 @@ export const AudioTrimmer: React.FC<AudioTrimmerProps> = ({
           <div className="absolute inset-0 pointer-events-none">
             {/* Left mask */}
             <div 
-              className="absolute top-0 left-0 h-full bg-slate-900/60 border-r border-slate-400"
+              className="absolute top-0 left-0 h-full bg-background/60 border-r border-muted-foreground"
               style={{ width: timeToPixel(startTime) }}
             />
             
             {/* Right mask */}
             <div 
-              className="absolute top-0 right-0 h-full bg-slate-900/60 border-l border-slate-400"
+              className="absolute top-0 right-0 h-full bg-background/60 border-l border-muted-foreground"
               style={{ width: containerWidth - timeToPixel(endTime) }}
             />
             
@@ -214,16 +214,16 @@ export const AudioTrimmer: React.FC<AudioTrimmerProps> = ({
         {/* Time Display */}
         <div className="grid grid-cols-3 gap-4 text-sm">
           <div className="text-center">
-            <div className="text-slate-400">Start Time</div>
-            <div className="font-mono text-slate-200">{formatTime(startTime)}</div>
+            <div className="text-muted-foreground">Start Time</div>
+            <div className="font-mono text-foreground">{formatTime(startTime)}</div>
           </div>
           <div className="text-center">
-            <div className="text-slate-400">Duration</div>
+            <div className="text-muted-foreground">Duration</div>
             <div className="font-mono text-purple-400">{formatTime(endTime - startTime)}</div>
           </div>
           <div className="text-center">
-            <div className="text-slate-400">End Time</div>
-            <div className="font-mono text-slate-200">{formatTime(endTime)}</div>
+            <div className="text-muted-foreground">End Time</div>
+            <div className="font-mono text-foreground">{formatTime(endTime)}</div>
           </div>
         </div>
 
@@ -231,19 +231,19 @@ export const AudioTrimmer: React.FC<AudioTrimmerProps> = ({
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => handleTrimChange(0, duration)}
-            className="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs text-slate-200 transition-colors"
+            className="px-3 py-1 bg-muted hover:bg-muted/80 rounded text-xs text-foreground transition-colors"
           >
             Full Track
           </button>
           <button
             onClick={() => handleTrimChange(0, 30)}
-            className="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs text-slate-200 transition-colors"
+            className="px-3 py-1 bg-muted hover:bg-muted/80 rounded text-xs text-foreground transition-colors"
           >
             First 30s
           </button>
           <button
             onClick={() => handleTrimChange(Math.max(0, duration - 30), duration)}
-            className="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs text-slate-200 transition-colors"
+            className="px-3 py-1 bg-muted hover:bg-muted/80 rounded text-xs text-foreground transition-colors"
           >
             Last 30s
           </button>
@@ -252,7 +252,7 @@ export const AudioTrimmer: React.FC<AudioTrimmerProps> = ({
               const middle = duration / 2;
               handleTrimChange(Math.max(0, middle - 15), Math.min(duration, middle + 15));
             }}
-            className="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs text-slate-200 transition-colors"
+            className="px-3 py-1 bg-muted hover:bg-muted/80 rounded text-xs text-foreground transition-colors"
           >
             Middle 30s
           </button>

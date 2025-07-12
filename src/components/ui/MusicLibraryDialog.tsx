@@ -87,74 +87,68 @@ export const MusicLibraryDialog: React.FC<MusicLibraryDialogProps> = ({
     setUploadProgress(0);
 
     try {
-      // Get audio duration
+      // Get audio duration first
+      setUploadProgress(10);
       const tempUrl = URL.createObjectURL(file);
       const audioInfo = await getAudioInfo(tempUrl);
       URL.revokeObjectURL(tempUrl);
 
-      // Step 1: Get presigned URL
-      const uploadUrlResponse = await fetch('http://localhost:3001/music/upload-url', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          filename: file.name,
-          contentType: file.type,
-        }),
-      });
-
-      const uploadUrlData = await uploadUrlResponse.json();
-      if (!uploadUrlData.success) {
-        throw new Error('Failed to get upload URL');
-      }
-
       setUploadProgress(30);
 
-      // Step 2: Upload to R2
-      const uploadResponse = await fetch(uploadUrlData.uploadUrl, {
-        method: 'PUT',
-        body: file,
-        headers: {
-          'Content-Type': file.type,
-        },
-      });
+      // Create FormData for direct upload
+      const formData = new FormData();
+      formData.append('music', file);
+      formData.append('title', file.name.replace(/\.[^/.]+$/, "")); // Remove extension for title
+      
+      setUploadProgress(50);
 
-      if (!uploadResponse.ok) {
-        throw new Error('Failed to upload file');
-      }
+      // Upload using the new direct upload API
+      const response = await fetch('/api/music/upload', {
+        method: 'POST',
+        body: formData,
+      });
 
       setUploadProgress(70);
 
-      // Step 3: Save metadata to database
-      const musicTitle = file.name.replace(/\.[^/.]+$/, ''); // Remove extension for title
-      const metadataResponse = await fetch('/api/music', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId,
-          title: musicTitle,
-          filename: file.name,
-          url: uploadUrlData.publicUrl,
-          duration: Math.round(audioInfo.duration),
-          fileSize: file.size,
-          mimeType: file.type,
-        }),
-      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to upload music file');
+      }
 
-      const metadataData = await metadataResponse.json();
-      if (!metadataData.success) {
-        throw new Error('Failed to save music metadata');
+      const { success, music } = await response.json();
+      
+      if (!success || !music) {
+        throw new Error('Upload response was not successful');
+      }
+
+      // Update the music record with correct duration
+      const updatedMusic = {
+        ...music,
+        duration: Math.round(audioInfo.duration)
+      };
+
+      setUploadProgress(90);
+
+      // Update duration in database
+      try {
+        await fetch(`/api/music/${music.id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            duration: Math.round(audioInfo.duration)
+          }),
+        });
+      } catch (error) {
+        console.warn('Failed to update duration, but upload succeeded:', error);
       }
 
       setUploadProgress(100);
       
       // Add to library and auto-select
-      const newMusic = metadataData.music;
-      setMusicLibrary(prev => [newMusic, ...prev]);
-      onMusicSelect(newMusic);
+      setMusicLibrary(prev => [updatedMusic, ...prev]);
+      onMusicSelect(updatedMusic);
       
       toast.success('Music uploaded successfully!');
       onClose();
@@ -174,12 +168,12 @@ export const MusicLibraryDialog: React.FC<MusicLibraryDialogProps> = ({
   const handleMusicSelect = async (music: MusicTrack) => {
     try {
       // Update last used timestamp
-      await fetch(`/api/music/${music.id}/use`, {
-        method: 'PUT',
+      await fetch(`/api/music/${music.id}`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ duration: music.duration }),
       });
 
       onMusicSelect(music);
@@ -200,7 +194,7 @@ export const MusicLibraryDialog: React.FC<MusicLibraryDialogProps> = ({
     }
 
     try {
-      const response = await fetch(`/api/music/${musicId}?userId=${userId}`, {
+      const response = await fetch(`/api/music/${musicId}`, {
         method: 'DELETE',
       });
 

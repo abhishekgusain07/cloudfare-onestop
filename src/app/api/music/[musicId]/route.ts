@@ -8,7 +8,7 @@ import { eq, and } from 'drizzle-orm';
 // PATCH /api/music/[musicId] - Update music metadata
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { musicId: string } }
+  { params }: { params: Promise<{ musicId: string }> }
 ) {
   try {
     // Get the current user's session
@@ -23,7 +23,7 @@ export async function PATCH(
       );
     }
 
-    const { musicId } = params;
+    const { musicId } = await params;
     const { duration } = await request.json();
 
     if (!musicId) {

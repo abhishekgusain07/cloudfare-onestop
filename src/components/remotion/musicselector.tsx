@@ -13,6 +13,8 @@ interface MusicSelectorProps {
   onTrimChange?: (startTime: number, endTime: number) => void;
   trimStart?: number;
   trimEnd?: number;
+  // Expose upload validation function
+  onUploadValidatorChange?: (validator: () => Promise<string | undefined>) => void;
 }
 
 export const MusicSelector: React.FC<MusicSelectorProps> = ({
@@ -24,6 +26,7 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
   onTrimChange,
   trimStart = 0,
   trimEnd,
+  onUploadValidatorChange,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -33,6 +36,8 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
   const [presetErrors, setPresetErrors] = useState<Set<string>>(new Set());
   const [audioDuration, setAudioDuration] = useState<number>(30);
   const [showTrimmer, setShowTrimmer] = useState(true);
+  const [pendingUpload, setPendingUpload] = useState<File | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<'none' | 'pending' | 'uploading' | 'completed' | 'failed'>('none');
   const audioRef = useRef<HTMLAudioElement>(null);
   console.log('musicUrl bhenchod bhenchod ', musicUrl);
   // Preset music options
@@ -43,7 +48,7 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
     { id: 'cinematic', name: 'Cinematic', url: '/music/cinematic.mp3' },
   ];
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -68,21 +73,114 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
 
     try {
       setCurrentFile(file);
-      const url = URL.createObjectURL(file);
-      onMusicChange(url);
-      // Ensure trimmer is visible when music is selected
+      setPendingUpload(file);
+      setUploadStatus('pending');
+      
+      // Create temporary blob URL for immediate preview
+      const tempUrl = URL.createObjectURL(file);
+      onMusicChange(tempUrl);
       setShowTrimmer(true);
-      // Load audio duration
-      loadAudioDuration(url);
+      loadAudioDuration(tempUrl);
+      
       setIsLoading(false);
     } catch (err) {
+      console.error('Failed to process audio file:', err);
       setError('Failed to process audio file. Please try again.');
       setIsLoading(false);
     }
   };
 
+  const uploadMusicToR2 = async (file: File): Promise<string> => {
+    setUploadStatus('uploading');
+    
+    try {
+      // Get presigned URL from backend
+      const response = await fetch('http://localhost:3001/music/upload-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: file.type,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get upload URL');
+      }
+
+      const { uploadUrl, publicUrl } = await response.json();
+
+      // Upload file to R2 using presigned URL
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+        },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload music file');
+      }
+
+      setUploadStatus('completed');
+      setPendingUpload(null);
+      console.log('Music uploaded successfully to R2:', publicUrl);
+      
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading music to R2:', error);
+      setUploadStatus('failed');
+      throw error;
+    }
+  };
+
+  // Function to ensure music is uploaded before rendering
+  const ensureMusicUploaded = React.useCallback(async (): Promise<string | undefined> => {
+    if (!musicUrl) return undefined;
+    
+    // If it's a preset music URL, return as-is
+    if (!musicUrl.startsWith('blob:')) {
+      return musicUrl;
+    }
+    
+    // If we have a pending upload, upload it now
+    if (pendingUpload && uploadStatus === 'pending') {
+      try {
+        const r2Url = await uploadMusicToR2(pendingUpload);
+        onMusicChange(r2Url);
+        return r2Url;
+      } catch (error) {
+        throw new Error('Failed to upload music file. Please try again.');
+      }
+    }
+    
+    // If upload was completed, return the current URL
+    if (uploadStatus === 'completed') {
+      return musicUrl;
+    }
+    
+    // If upload failed, throw error
+    if (uploadStatus === 'failed') {
+      throw new Error('Music upload failed. Please select the file again.');
+    }
+    
+    return musicUrl;
+  }, [musicUrl, pendingUpload, uploadStatus, onMusicChange]);
+
+  // Expose the upload validator function to parent
+  React.useEffect(() => {
+    if (onUploadValidatorChange) {
+      onUploadValidatorChange(ensureMusicUploaded);
+    }
+  }, [onUploadValidatorChange, ensureMusicUploaded]);
+
   const handlePresetSelect = (url: string) => {
     setCurrentFile(null);
+    setPendingUpload(null);
+    setUploadStatus('none');
     setError(null);
     onMusicChange(url);
     setIsPlaying(false);
@@ -145,6 +243,8 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
 
   const handleRemoveMusic = () => {
     setCurrentFile(null);
+    setPendingUpload(null);
+    setUploadStatus('none');
     setError(null);
     onMusicChange(undefined);
     setIsPlaying(false);
@@ -196,8 +296,20 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
                   >
                     {currentFile ? currentFile.name : 'Preset Music'}
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {currentFile ? 'Custom Upload' : 'Built-in Track'}
+                  <div className="text-xs text-muted-foreground flex items-center space-x-2">
+                    <span>{currentFile ? 'Custom Upload' : 'Built-in Track'}</span>
+                    {uploadStatus === 'pending' && (
+                      <span className="text-yellow-400 text-xs">• Will upload when rendering</span>
+                    )}
+                    {uploadStatus === 'uploading' && (
+                      <span className="text-blue-400 text-xs">• Uploading...</span>
+                    )}
+                    {uploadStatus === 'completed' && (
+                      <span className="text-green-400 text-xs">• Ready for rendering</span>
+                    )}
+                    {uploadStatus === 'failed' && (
+                      <span className="text-red-400 text-xs">• Upload failed</span>
+                    )}
                   </div>
                 </div>
               </div>

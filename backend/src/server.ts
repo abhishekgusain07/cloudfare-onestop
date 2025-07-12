@@ -3,6 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
 import { S3Client, ListObjectsV2Command, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { bundle } from '@remotion/bundler';
 import type { WebpackConfiguration } from '@remotion/bundler';
 import { renderMedia, selectComposition, renderStill } from '@remotion/renderer';
@@ -309,6 +310,11 @@ app.post('/render', async (req: any, res: any) => {
           }
         });
 
+        // Validate musicUrl if present - should not be a blob URL
+        if (videoParams.musicUrl && videoParams.musicUrl.startsWith('blob:')) {
+          console.error('⚠️  WARNING: Received blob URL for music. This will fail during rendering:', videoParams.musicUrl);
+        }
+
         // Set output path
         const outputPath = path.resolve(rendersDir, `${renderId}.mp4`);
 
@@ -434,6 +440,60 @@ app.get('/renders', (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch renders',
+    });
+  }
+});
+
+// Generate presigned URL for music upload
+app.post('/music/upload-url', async (req: any, res: any) => {
+  try {
+    const { filename, contentType } = req.body;
+
+    if (!filename || !contentType) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing filename or contentType'
+      });
+    }
+
+    // Validate content type for audio files
+    const allowedTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/m4a'];
+    if (!allowedTypes.includes(contentType.toLowerCase())) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid content type. Only audio files are allowed.'
+      });
+    }
+
+    // Generate unique filename to prevent conflicts
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substr(2, 9);
+    const extension = filename.split('.').pop();
+    const uniqueFilename = `${timestamp}_${randomId}.${extension}`;
+    const key = `music/${uniqueFilename}`;
+
+    // Create presigned URL for PUT operation
+    const command = new PutObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: key,
+      ContentType: contentType,
+    });
+
+    const presignedUrl = await getSignedUrl(r2, command, { expiresIn: 300 }); // 5 minutes
+
+    // Return presigned URL and the final public URL
+    res.json({
+      success: true,
+      uploadUrl: presignedUrl,
+      publicUrl: `${R2_PUBLIC_URL_BASE}/${key}`,
+      key: key
+    });
+
+  } catch (error) {
+    console.error('Error generating presigned URL:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate upload URL'
     });
   }
 });

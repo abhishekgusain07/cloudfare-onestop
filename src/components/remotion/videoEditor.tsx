@@ -20,6 +20,8 @@ export interface VideoParams {
 
 const VideoEditorPage: React.FC = () => {
   const playerRef = useRef<PlayerRef>(null);
+  const [musicUploadValidator, setMusicUploadValidator] = useState<(() => Promise<string | undefined>) | null>(null);
+  const [isRendering, setIsRendering] = useState(false);
   
   // Video parameters state
   const [videoParams, setVideoParams] = useState<VideoParams>({
@@ -45,7 +47,24 @@ const VideoEditorPage: React.FC = () => {
   };
 
   const handleRender = async () => {
+    if (isRendering) return;
+    
+    setIsRendering(true);
+    
     try {
+      // Ensure music is uploaded to R2 before rendering
+      let finalMusicUrl = videoParams.musicUrl;
+      if (musicUploadValidator && videoParams.musicUrl) {
+        console.log('Validating music upload before rendering...');
+        finalMusicUrl = await musicUploadValidator();
+      }
+      
+      // Create final video params with R2 music URL
+      const finalVideoParams = {
+        ...videoParams,
+        musicUrl: finalMusicUrl
+      };
+      
       // This will trigger the API route to render video with AWS Lambda
       const response = await fetch('/api/render', {
         method: 'POST',
@@ -53,7 +72,7 @@ const VideoEditorPage: React.FC = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          videoParams,
+          videoParams: finalVideoParams,
           template: videoTemplates.find(t => t.id === videoParams.selectedTemplate)
         }),
       });
@@ -68,6 +87,9 @@ const VideoEditorPage: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to start render:', error);
+      alert('Failed to start render: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    } finally {
+      setIsRendering(false);
     }
   };
 
@@ -107,9 +129,14 @@ const VideoEditorPage: React.FC = () => {
                 </div>
                 <button
                   onClick={handleRender}
-                  className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg font-medium transition-colors"
+                  disabled={isRendering}
+                  className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                    isRendering 
+                      ? 'bg-gray-600 cursor-not-allowed' 
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
                 >
-                  Render Video
+                  {isRendering ? 'Processing...' : 'Render Video'}
                 </button>
               </div>
             </div>
@@ -150,6 +177,7 @@ const VideoEditorPage: React.FC = () => {
               volume={videoParams.musicVolume}
               onMusicChange={(musicUrl) => updateVideoParams({ musicUrl })}
               onVolumeChange={(musicVolume) => updateVideoParams({ musicVolume })}
+              onUploadValidatorChange={setMusicUploadValidator}
             />
           </div>
         </div>

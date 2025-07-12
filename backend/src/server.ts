@@ -13,6 +13,7 @@ import axios from 'axios';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { writeFileSync, unlinkSync, mkdirSync, existsSync } from 'fs';
+// Removed: drizzle imports - database operations moved to Next.js API routes
 
 // Load environment variables
 dotenv.config();
@@ -33,6 +34,8 @@ const r2 = new S3Client({
 
 const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME;
 const R2_PUBLIC_URL_BASE = process.env.R2_PUBLIC_URL_BASE;
+
+// Removed: Database connection - now handled by Next.js API routes
 
 // Middleware
 app.use(cors({
@@ -443,6 +446,16 @@ app.get('/renders', (req, res) => {
     });
   }
 });
+
+// Music Management API Endpoints
+
+// Removed: Get user's music library - now handled by Next.js API routes
+
+// Removed: Save music metadata - now handled by Next.js API routes
+
+// Removed: Delete music track - now handled by Next.js API routes
+
+// Removed: Update last used timestamp - now handled by Next.js API routes
 
 // Generate presigned URL for music upload
 app.post('/music/upload-url', async (req: any, res: any) => {

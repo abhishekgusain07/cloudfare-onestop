@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { AudioTrimmer } from '@/components/audio/AudioTrimmer';
 import { TimeControls } from '@/components/audio/TimeControls';
+import { MusicLibraryDialog } from '@/components/ui/MusicLibraryDialog';
 import { getAudioInfo } from '@/utils/audioProcessing';
 
 interface MusicSelectorProps {
@@ -17,6 +18,19 @@ interface MusicSelectorProps {
   onUploadValidatorChange?: (validator: () => Promise<string | undefined>) => void;
 }
 
+interface MusicTrack {
+  id: string;
+  userId: string;
+  title: string;
+  filename: string;
+  url: string;
+  duration: number;
+  fileSize: number;
+  mimeType: string;
+  uploadedAt: string;
+  lastUsed?: string;
+}
+
 export const MusicSelector: React.FC<MusicSelectorProps> = ({
   musicUrl,
   volume,
@@ -31,6 +45,7 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentFile, setCurrentFile] = useState<File | null>(null);
+  const [currentMusicTrack, setCurrentMusicTrack] = useState<MusicTrack | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [presetErrors, setPresetErrors] = useState<Set<string>>(new Set());
@@ -38,6 +53,7 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
   const [showTrimmer, setShowTrimmer] = useState(true);
   const [pendingUpload, setPendingUpload] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState<'none' | 'pending' | 'uploading' | 'completed' | 'failed'>('none');
+  const [showMusicLibrary, setShowMusicLibrary] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   console.log('musicUrl bhenchod bhenchod ', musicUrl);
   // Preset music options
@@ -241,8 +257,22 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
     }
   };
 
+  // Handle music library selection
+  const handleMusicLibrarySelect = (musicTrack: MusicTrack) => {
+    setCurrentMusicTrack(musicTrack);
+    setCurrentFile(null);
+    setPendingUpload(null);
+    setUploadStatus('completed'); // Mark as completed since it's from library
+    setError(null);
+    onMusicChange(musicTrack.url);
+    setIsPlaying(false);
+    setShowTrimmer(true);
+    setAudioDuration(musicTrack.duration);
+  };
+
   const handleRemoveMusic = () => {
     setCurrentFile(null);
+    setCurrentMusicTrack(null);
     setPendingUpload(null);
     setUploadStatus('none');
     setError(null);
@@ -292,12 +322,14 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
                 <div className="min-w-0 flex-1">
                   <div 
                     className="text-sm font-medium text-foreground truncate" 
-                    title={currentFile ? currentFile.name : 'Preset Music'}
+                    title={currentMusicTrack ? currentMusicTrack.title : currentFile ? currentFile.name : 'Preset Music'}
                   >
-                    {currentFile ? currentFile.name : 'Preset Music'}
+                    {currentMusicTrack ? currentMusicTrack.title : currentFile ? currentFile.name : 'Preset Music'}
                   </div>
                   <div className="text-xs text-muted-foreground flex items-center space-x-2">
-                    <span>{currentFile ? 'Custom Upload' : 'Built-in Track'}</span>
+                    <span>
+                      {currentMusicTrack ? 'From Library' : currentFile ? 'Custom Upload' : 'Built-in Track'}
+                    </span>
                     {uploadStatus === 'pending' && (
                       <span className="text-yellow-400 text-xs">• Will upload when rendering</span>
                     )}
@@ -386,16 +418,31 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
           </div>
         </div>
 
-        {/* Upload Custom Music */}
+        {/* Music Library Section */}
         <div>
           <label className="block text-sm font-medium mb-2 text-foreground">
-            Upload Custom Music
+            Select Music
           </label>
-          <div className="w-full">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Music Library Button */}
+            <button
+              onClick={() => setShowMusicLibrary(true)}
+              className="w-full border-2 border-dashed rounded-lg px-4 py-6 text-center transition-all duration-200 border-border/50 bg-muted/80 hover:bg-muted/90 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/10"
+            >
+              <div className="flex flex-col items-center justify-center space-y-2 text-foreground">
+                <svg className="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                <span className="text-sm font-medium">Music Library</span>
+                <span className="text-xs text-muted-foreground">Upload & select from your music</span>
+              </div>
+            </button>
+
+            {/* Quick Upload Button */}
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isLoading}
-              className={`w-full border-2 border-dashed rounded-lg px-6 py-4 text-center transition-all duration-200 ${
+              className={`w-full border-2 border-dashed rounded-lg px-4 py-6 text-center transition-all duration-200 ${
                 isLoading 
                   ? 'border-border/30 bg-muted/50 cursor-not-allowed' 
                   : 'border-border/50 bg-muted/80 hover:bg-muted/90 hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/10'
@@ -415,22 +462,24 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
                     <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                     </svg>
-                    <span className="text-sm font-medium">Choose Audio File</span>
-                    <span className="text-xs text-muted-foreground">Click to browse or drag & drop</span>
+                    <span className="text-sm font-medium">Quick Upload</span>
+                    <span className="text-xs text-muted-foreground">Upload & use immediately</span>
                   </>
                 )}
               </div>
             </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="audio/*"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
           </div>
-          <div className="text-xs text-muted-foreground mt-1">
-            Supported formats: MP3, WAV, M4A, OGG
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="audio/*"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+
+          <div className="text-xs text-muted-foreground mt-2 text-center">
+            Supported formats: MP3, WAV, M4A, OGG (max 50MB)
           </div>
         </div>
 
@@ -573,6 +622,14 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
           box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
         }
       `}</style>
+
+      {/* Music Library Dialog */}
+      <MusicLibraryDialog
+        isOpen={showMusicLibrary}
+        onClose={() => setShowMusicLibrary(false)}
+        onMusicSelect={handleMusicLibrarySelect}
+        userId="demo-user" // TODO: Get from auth context
+      />
     </div>
   );
 };

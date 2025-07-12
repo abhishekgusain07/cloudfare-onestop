@@ -217,3 +217,20 @@ export const insertUserImageCollectionSchema = createInsertSchema(userImageColle
 
 export const selectUserImageSchema = createSelectSchema(userImages);
 export const insertUserImageSchema = createInsertSchema(userImages);
+
+
+export const music = pgTable('music', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  filename: text('filename').notNull(),
+  url: text('url').notNull(), 
+  duration: integer('duration').notNull(), 
+  fileSize: integer('file_size').notNull(), 
+  mimeType: text('mime_type').notNull(),
+  uploadedAt: timestamp('uploaded_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  lastUsed: timestamp('last_used'),
+});
+
+export const selectMusicSchema = createSelectSchema(music);
+export const insertMusicSchema = createInsertSchema(music);

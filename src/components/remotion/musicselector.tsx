@@ -3,6 +3,7 @@ import { AudioTrimmer } from '@/components/audio/AudioTrimmer';
 import { TimeControls } from '@/components/audio/TimeControls';
 import { MusicLibraryDialog } from '@/components/ui/MusicLibraryDialog';
 import { getAudioInfo } from '@/utils/audioProcessing';
+import { useUser } from '@/hooks/useUser';
 
 interface MusicSelectorProps {
   musicUrl?: string;
@@ -42,6 +43,7 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
   trimEnd,
   onUploadValidatorChange,
 }) => {
+  const { user } = useUser();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentMusicTrack, setCurrentMusicTrack] = useState<MusicTrack | null>(null);
@@ -51,7 +53,7 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
   const [showTrimmer, setShowTrimmer] = useState(true);
   const [showMusicLibrary, setShowMusicLibrary] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
-  console.log('musicUrl bhenchod bhenchod ', musicUrl);
+  
   // Preset music options
   const presetMusic = [
     { id: 'upbeat', name: 'Upbeat Pop', url: '/music/upbeat-pop.mp3' },
@@ -443,7 +445,7 @@ export const MusicSelector: React.FC<MusicSelectorProps> = ({
         isOpen={showMusicLibrary}
         onClose={() => setShowMusicLibrary(false)}
         onMusicSelect={handleMusicLibrarySelect}
-        userId="demo-user" // TODO: Get from auth context
+        userId={user?.id}
       />
     </div>
   );

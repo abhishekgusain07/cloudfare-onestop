@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { getAudioInfo } from '@/utils/audioProcessing';
+import { getUserMusic, updateMusicUsage, deleteUserMusic, updateMusicTitle } from '@/actions/music';
 
 interface MusicTrack {
   id: string;
@@ -31,32 +32,40 @@ export const MusicLibraryDialog: React.FC<MusicLibraryDialogProps> = ({
   isOpen,
   onClose,
   onMusicSelect,
-  userId = 'demo-user', // TODO: Get from auth context
+  userId,
 }) => {
   const [musicLibrary, setMusicLibrary] = useState<MusicTrack[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [editingMusicId, setEditingMusicId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
+  const [isUpdatingTitle, setIsUpdatingTitle] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load music library when dialog opens
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && userId) {
       loadMusicLibrary();
     }
-  }, [isOpen]);
+  }, [isOpen, userId]);
 
   const loadMusicLibrary = async () => {
+    if (!userId) {
+      console.warn('No user ID available for loading music library');
+      return;
+    }
+    
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/music?userId=${userId}`);
-      const data = await response.json();
+      // Use server action for better type safety and performance
+      const result = await getUserMusic();
       
-      if (data.success) {
-        setMusicLibrary(data.music);
+      if (result.success && result.music) {
+        setMusicLibrary(result.music);
       } else {
-        toast.error('Failed to load music library');
+        toast.error(result.error || 'Failed to load music library');
       }
     } catch (error) {
       console.error('Error loading music library:', error);
@@ -69,6 +78,12 @@ export const MusicLibraryDialog: React.FC<MusicLibraryDialogProps> = ({
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    // Check if user is authenticated
+    if (!userId) {
+      toast.error('Please sign in to upload music');
+      return;
+    }
 
     // Validate file type
     if (!file.type.startsWith('audio/')) {
@@ -167,13 +182,10 @@ export const MusicLibraryDialog: React.FC<MusicLibraryDialogProps> = ({
 
   const handleMusicSelect = async (music: MusicTrack) => {
     try {
-      // Update last used timestamp
-      await fetch(`/api/music/${music.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ duration: music.duration }),
+      // Update last used timestamp using server action
+      await updateMusicUsage({
+        musicId: music.id,
+        duration: music.duration
       });
 
       onMusicSelect(music);
@@ -194,20 +206,64 @@ export const MusicLibraryDialog: React.FC<MusicLibraryDialogProps> = ({
     }
 
     try {
-      const response = await fetch(`/api/music/${musicId}`, {
-        method: 'DELETE',
-      });
-
-      const data = await response.json();
-      if (data.success) {
+      const result = await deleteUserMusic(musicId);
+      
+      if (result.success) {
         setMusicLibrary(prev => prev.filter(music => music.id !== musicId));
         toast.success('Music deleted successfully');
       } else {
-        toast.error('Failed to delete music');
+        toast.error(result.error || 'Failed to delete music');
       }
     } catch (error) {
       console.error('Error deleting music:', error);
       toast.error('Failed to delete music');
+    }
+  };
+
+  const handleStartEdit = (music: MusicTrack, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent selection when starting edit
+    setEditingMusicId(music.id);
+    setEditingTitle(music.title);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMusicId(null);
+    setEditingTitle('');
+  };
+
+  const handleSaveTitle = async (musicId: string) => {
+    if (!editingTitle.trim()) {
+      toast.error('Title cannot be empty');
+      return;
+    }
+
+    setIsUpdatingTitle(true);
+    try {
+      const result = await updateMusicTitle({
+        musicId,
+        title: editingTitle.trim()
+      });
+
+      if (result.success) {
+        // Update the music in the local state
+        setMusicLibrary(prev => 
+          prev.map(music => 
+            music.id === musicId 
+              ? { ...music, title: editingTitle.trim() }
+              : music
+          )
+        );
+        setEditingMusicId(null);
+        setEditingTitle('');
+        toast.success('Music title updated successfully');
+      } else {
+        toast.error(result.error || 'Failed to update music title');
+      }
+    } catch (error) {
+      console.error('Error updating music title:', error);
+      toast.error('Failed to update music title');
+    } finally {
+      setIsUpdatingTitle(false);
     }
   };
 
@@ -229,7 +285,16 @@ export const MusicLibraryDialog: React.FC<MusicLibraryDialogProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
+      <DialogContent 
+        className="flex flex-col"
+        style={{
+          maxWidth: '90vw',
+          maxHeight: '90vh',
+          width: '90vw',
+          height: '90vh',
+          padding: '24px'
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Music Library</DialogTitle>
           <DialogDescription>
@@ -270,11 +335,12 @@ export const MusicLibraryDialog: React.FC<MusicLibraryDialogProps> = ({
                     variant="outline" 
                     onClick={() => fileInputRef.current?.click()}
                     className="mb-2"
+                    disabled={!userId}
                   >
-                    Upload New Music
+                    {userId ? 'Upload New Music' : 'Sign in to Upload Music'}
                   </Button>
                   <div className="text-xs text-muted-foreground">
-                    MP3, WAV, M4A, OGG (max 50MB)
+                    {userId ? 'MP3, WAV, M4A, OGG (max 50MB)' : 'Authentication required'}
                   </div>
                 </div>
               </div>
@@ -323,50 +389,142 @@ export const MusicLibraryDialog: React.FC<MusicLibraryDialogProps> = ({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {filteredMusic.map((music) => (
-                <div
-                  key={music.id}
-                  onClick={() => handleMusicSelect(music)}
-                  className="border rounded-lg p-4 hover:bg-muted/50 cursor-pointer transition-colors group"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-sm truncate" title={music.title}>
-                        {music.title}
-                      </h4>
-                      <p className="text-xs text-muted-foreground truncate" title={music.filename}>
-                        {music.filename}
-                      </p>
+              {filteredMusic.map((music) => {
+                const isEditing = editingMusicId === music.id;
+                return (
+                  <div
+                    key={music.id}
+                    onClick={() => !isEditing && handleMusicSelect(music)}
+                    className="border rounded-lg p-4 hover:bg-muted/50 cursor-pointer transition-colors group"
+                    style={{ cursor: isEditing ? 'default' : 'pointer' }}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1 min-w-0">
+                        {isEditing ? (
+                          <div className="space-y-2">
+                            <input
+                              type="text"
+                              value={editingTitle}
+                              onChange={(e) => setEditingTitle(e.target.value)}
+                              onClick={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  handleSaveTitle(music.id);
+                                } else if (e.key === 'Escape') {
+                                  handleCancelEdit();
+                                }
+                              }}
+                              disabled={isUpdatingTitle}
+                              style={{
+                                width: '100%',
+                                padding: '4px 8px',
+                                border: '1px solid #ccc',
+                                borderRadius: '4px',
+                                fontSize: '14px',
+                                fontWeight: '500'
+                              }}
+                            />
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSaveTitle(music.id);
+                                }}
+                                disabled={isUpdatingTitle}
+                                style={{
+                                  padding: '2px 8px',
+                                  backgroundColor: '#22c55e',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  fontSize: '12px',
+                                  cursor: isUpdatingTitle ? 'not-allowed' : 'pointer',
+                                  opacity: isUpdatingTitle ? 0.5 : 1
+                                }}
+                              >
+                                {isUpdatingTitle ? 'Saving...' : 'Save'}
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCancelEdit();
+                                }}
+                                disabled={isUpdatingTitle}
+                                style={{
+                                  padding: '2px 8px',
+                                  backgroundColor: '#6b7280',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  fontSize: '12px',
+                                  cursor: isUpdatingTitle ? 'not-allowed' : 'pointer',
+                                  opacity: isUpdatingTitle ? 0.5 : 1
+                                }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <h4 className="font-medium text-sm truncate" title={music.title}>
+                              {music.title}
+                            </h4>
+                            <p className="text-xs text-muted-foreground truncate" title={music.filename}>
+                              {music.filename}
+                            </p>
+                          </>
+                        )}
+                      </div>
+                      
+                      {!isEditing && (
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => handleStartEdit(music, e)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-auto text-blue-500 hover:text-blue-600"
+                          >
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                            </svg>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => handleDeleteMusic(music.id, e)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-auto text-red-500 hover:text-red-600"
+                          >
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                            </svg>
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => handleDeleteMusic(music.id, e)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-auto text-red-500 hover:text-red-600"
-                    >
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-                      </svg>
-                    </Button>
-                  </div>
-                  
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{formatDuration(music.duration)}</span>
-                    <span>{formatFileSize(music.fileSize)}</span>
-                  </div>
+                    
+                    {!isEditing && (
+                      <>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{formatDuration(music.duration)}</span>
+                          <span>{formatFileSize(music.fileSize)}</span>
+                        </div>
 
-                  <div className="flex gap-1 mt-2">
-                    <Badge variant="secondary" className="text-xs">
-                      {music.mimeType.split('/')[1].toUpperCase()}
-                    </Badge>
-                    {music.lastUsed && (
-                      <Badge variant="outline" className="text-xs">
-                        Recently Used
-                      </Badge>
+                        <div className="flex gap-1 mt-2">
+                          <Badge variant="secondary" className="text-xs">
+                            {music.mimeType.split('/')[1].toUpperCase()}
+                          </Badge>
+                          {music.lastUsed && (
+                            <Badge variant="outline" className="text-xs">
+                              Recently Used
+                            </Badge>
+                          )}
+                        </div>
+                      </>
                     )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </ScrollArea>
